@@ -10,46 +10,116 @@ use App\Http\Controllers\DashboardController;
 // Halaman Utama Publik
 // ========================
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('welcome', ['activePage' => 'home']);
+})->name('home');
 
 // ========================
 // ROUTE UNTUK PUBLIK (tanpa login)
 // ========================
-Route::get('/ruangan-publik', [RuanganController::class, 'publik'])->name('ruangan.publik');
-Route::get('/jadwal-publik', [BookingController::class, 'jadwalPublik'])->name('jadwal.publik');
-Route::get('/booking-publik', [BookingController::class, 'createPublik'])->name('booking.publik');
-Route::post('/booking-publik', [BookingController::class, 'storePublik'])->name('booking.publik.store');
 
-// Route untuk check availability (bisa diakses publik atau teknisi)
+// Jadwal Ruangan (timeline view)
+Route::get('/jadwal-ruangan', [RuanganController::class, 'publik'])
+    ->name('ruangan.publik');  // Ganti dari /ruangan-publik
+
+// Form Booking untuk publik
+Route::get('/booking', [BookingController::class, 'create'])
+    ->name('booking.publik');
+
+// Store Booking dari publik
+Route::post('/booking', [BookingController::class, 'store'])
+    ->name('booking.publik.store');
+
+// Check availability ruangan
 Route::post('/check-availability', [RuanganController::class, 'checkAvailability'])
     ->name('ruangan.checkAvailability');
 
 // ========================
 // ROUTE UNTUK AUTH (Login Teknisi)
 // ========================
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Login page
+Route::get('/login', [AuthController::class, 'showLogin'])
+    ->name('login')
+    ->middleware('guest');  // Hanya bisa diakses jika belum login
+
+// Login process
+Route::post('/login', [AuthController::class, 'login'])
+    ->name('login.post')
+    ->middleware('guest');
+
+// Logout
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->name('logout')
+    ->middleware('auth');  // Hanya bisa diakses jika sudah login
 
 // ========================
-// ROUTE UNTUK TEKNISI (harus login)
+// ROUTE UNTUK TEKNISI (harus login & role teknisi)
+// ========================
+Route::middleware(['auth', 'role:teknisi'])->group(function () {
+
+    // Dashboard Teknisi
+    Route::get('/teknisi/dashboard', [DashboardController::class, 'index'])
+        ->name('teknisi.dashboard');
+
+    // Jadwal Ruangan (view khusus teknisi)
+    Route::get('/teknisi/jadwal-ruangan', [RuanganController::class, 'jadwalRuangan'])
+        ->name('ruangan.jadwal');
+
+    // CRUD Ruangan untuk teknisi
+    Route::prefix('teknisi/ruangan')->group(function () {
+        Route::get('/', [RuanganController::class, 'index'])->name('ruangan.index');
+        Route::get('/create', [RuanganController::class, 'create'])->name('ruangan.create');
+        Route::post('/', [RuanganController::class, 'store'])->name('ruangan.store');
+        Route::get('/{ruangan}', [RuanganController::class, 'show'])->name('ruangan.show');
+        Route::get('/{ruangan}/edit', [RuanganController::class, 'edit'])->name('ruangan.edit');
+        Route::put('/{ruangan}', [RuanganController::class, 'update'])->name('ruangan.update');
+        Route::delete('/{ruangan}', [RuanganController::class, 'destroy'])->name('ruangan.destroy');
+    });
+
+    // CRUD Booking untuk teknisi
+    Route::prefix('teknisi/booking')->group(function () {
+        Route::get('/', [BookingController::class, 'index'])->name('booking.index');
+        Route::get('/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('/', [BookingController::class, 'store'])->name('booking.store');
+        Route::get('/{booking}', [BookingController::class, 'show'])->name('booking.show');
+        Route::get('/{booking}/edit', [BookingController::class, 'edit'])->name('booking.edit');
+        Route::put('/{booking}', [BookingController::class, 'update'])->name('booking.update');
+        Route::delete('/{booking}', [BookingController::class, 'destroy'])->name('booking.destroy');
+
+        // Update status booking (approve/reject)
+        Route::post('/{booking}/status', [BookingController::class, 'updateStatus'])
+            ->name('booking.status');
+    });
+});
+
+// ========================
+// ROUTE UNTUK USER YANG SUDAH LOGIN (role user biasa)
 // ========================
 Route::middleware(['auth'])->group(function () {
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('teknisi.dashboard');
-    
-    // CRUD Ruangan
-    Route::resource('ruangan', RuanganController::class);
-    
-    // CRUD Booking
-    Route::resource('booking', BookingController::class);
-    Route::post('/booking/{booking}/status', [BookingController::class, 'updateStatus'])->name('booking.status');
+    // Profile user
+    Route::get('/profile', function () {
+        return view('profile', ['activePage' => 'profile']);
+    })->name('profile');
+
+    // History booking user
+    Route::get('/my-bookings', [BookingController::class, 'myBookings'])
+        ->name('booking.my');
+});
+
+// ========================
+// API Routes (untuk AJAX/JavaScript)
+// ========================
+Route::prefix('api')->group(function () {
+    Route::get('/ruangan/{id}/availability', [RuanganController::class, 'getAvailability'])
+        ->name('api.ruangan.availability');
+
+    Route::get('/bookings/today', [BookingController::class, 'getTodayBookings'])
+        ->name('api.bookings.today');
 });
 
 // ========================
 // Fallback untuk error 404
 // ========================
 Route::fallback(function () {
-    return redirect('/');
+    return redirect('/')->with('error', 'Halaman tidak ditemukan');
 });

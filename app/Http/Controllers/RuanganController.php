@@ -11,12 +11,65 @@ class RuanganController extends Controller
     // ========== METHOD UNTUK PUBLIK ==========
     public function publik()
     {
-        $ruangans = Ruangan::where('status', 'tersedia')->get();
-        return view('publik.ruangan', compact('ruangans'));
+        // Dapatkan semua ruangan yang tersedia, urutkan lantai dan nama
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
+
+        // Jika belum ada data ruangan, jalankan seeder atau buat dummy
+        if ($ruangans->count() == 0) {
+            \Artisan::call('db:seed', ['--class' => 'RuanganSeeder']);
+            $ruangans = Ruangan::where('status', 'tersedia')
+                ->orderBy('lantai', 'asc')
+                ->orderBy('nama', 'asc')
+                ->get();
+        }
+
+        // Dapatkan booking untuk hari ini
+        $today = now()->format('Y-m-d');
+        $bookings = Booking::with('ruangan')
+            ->where('tanggal', $today)
+            ->whereIn('status', ['disetujui', 'menunggu'])
+            ->orderBy('jam_mulai', 'asc')
+            ->get();
+
+        // Buat array jam dari 07:00 sampai 17:00 (1 jam interval)
+        $jamSlots = [];
+        for ($hour = 7; $hour <= 17; $hour++) {
+            $jamSlots[] = sprintf('%02d:00', $hour);
+        }
+
+        // Mapping booking ke ruangan dan jam
+        $bookingMap = [];
+        foreach ($bookings as $booking) {
+            $ruanganId = $booking->ruangan_id;
+            $jamMulai = substr($booking->jam_mulai, 0, 5); // Format HH:MM
+            $jamSelesai = substr($booking->jam_selesai, 0, 5);
+
+            // Tentukan slot jam yang dipakai
+            $startHour = (int)substr($jamMulai, 0, 2);
+            $endHour = (int)substr($jamSelesai, 0, 2);
+
+            for ($hour = $startHour; $hour < $endHour; $hour++) {
+                $slot = sprintf('%02d:00', $hour);
+                if (!isset($bookingMap[$ruanganId])) {
+                    $bookingMap[$ruanganId] = [];
+                }
+                $bookingMap[$ruanganId][$slot] = [
+                    'booking' => $booking,
+                    'span' => $endHour - $startHour, // Berapa jam durasinya
+                    'startSlot' => $startHour
+                ];
+            }
+        }
+
+        return view('publik.ruangan', compact('ruangans', 'bookings', 'jamSlots', 'bookingMap'));
     }
 
+
     // ========== METHOD UNTUK TEKNISI (CRUD) ==========
-    
+
     /**
      * Display a listing of the resource.
      */
@@ -125,13 +178,13 @@ class RuanganController extends Controller
 
         $booking = Booking::where('ruangan_id', $request->ruangan_id)
             ->where('tanggal', $request->tanggal)
-            ->where(function($query) use ($request) {
+            ->where(function ($query) use ($request) {
                 $query->whereBetween('jam_mulai', [$request->jam_mulai, $request->jam_selesai])
-                      ->orWhereBetween('jam_selesai', [$request->jam_mulai, $request->jam_selesai])
-                      ->orWhere(function($q) use ($request) {
-                          $q->where('jam_mulai', '<=', $request->jam_mulai)
+                    ->orWhereBetween('jam_selesai', [$request->jam_mulai, $request->jam_selesai])
+                    ->orWhere(function ($q) use ($request) {
+                        $q->where('jam_mulai', '<=', $request->jam_mulai)
                             ->where('jam_selesai', '>=', $request->jam_selesai);
-                      });
+                    });
             })
             ->where('status', 'disetujui')
             ->exists();
@@ -140,5 +193,27 @@ class RuanganController extends Controller
             'available' => !$booking,
             'message' => $booking ? 'Ruangan sudah dipesan' : 'Ruangan tersedia'
         ]);
+    }
+
+
+    public function jadwalRuangan()
+    {
+        // Ambil semua ruangan
+        $ruangans = Ruangan::orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
+
+        // Ambil data booking untuk hari ini dan besok
+        $today = now()->format('Y-m-d');
+        $tomorrow = now()->addDay()->format('Y-m-d');
+
+        $bookings = Booking::with('ruangan')
+            ->whereIn('tanggal', [$today, $tomorrow])
+            ->whereIn('status', ['disetujui', 'menunggu'])
+            ->orderBy('tanggal', 'asc')
+            ->orderBy('jam_mulai', 'asc')
+            ->get();
+
+        return view('publik.jadwal-ruangan', compact('ruangans', 'bookings'));
     }
 }
