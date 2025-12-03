@@ -7,27 +7,31 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    /**
-     * Show login form
-     */
+    // Show login form
     public function showLogin()
     {
-        return view('auth.login');
+        return view('auth.login', ['activePage' => 'login']);
     }
 
-    /**
-     * Handle login request
-     */
+    // Handle login
     public function login(Request $request)
     {
         $credentials = $request->validate([
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required'
         ]);
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect()->route('teknisi.dashboard');
+
+            // Redirect berdasarkan role
+            if (Auth::user()->role === 'teknisi') {
+                return redirect()->route('teknisi.dashboard')
+                    ->with('success', 'Login berhasil! Selamat datang, ' . Auth::user()->name);
+            }
+
+            return redirect()->route('home')
+                ->with('success', 'Login berhasil!');
         }
 
         return back()->withErrors([
@@ -35,14 +39,15 @@ class AuthController extends Controller
         ])->onlyInput('email');
     }
 
-    /**
-     * Handle logout request
-     */
+    // Handle logout
     public function logout(Request $request)
     {
         Auth::logout();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect('/');
+
+        return redirect()->route('home')
+            ->with('success', 'Logout berhasil!');
     }
 }

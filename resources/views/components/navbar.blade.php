@@ -30,12 +30,6 @@
                     </a>
                 </li>
 
-                <li class="nav-item">
-                    <a class="nav-link {{ $activePage == 'booking' ? 'active' : '' }}"
-                        href="{{ route('booking.publik') }}">
-                        <i class="bi bi-calendar-plus"></i> Booking
-                    </a>
-                </li>
 
                 <!-- Menu tambahan jika ada -->
                 @if (isset($additionalMenus))
@@ -55,17 +49,35 @@
 
             <!-- Right side menu -->
             <ul class="navbar-nav ms-auto">
+                {{-- Di bagian login/logout --}}
                 @auth
                     <!-- User sudah login -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ Auth::user()->name }}
+                            <span class="badge bg-{{ Auth::user()->role === 'teknisi' ? 'warning' : 'info' }} ms-1">
+                                {{ Auth::user()->role }}
+                            </span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             @if (Auth::user()->role === 'teknisi')
                                 <li>
                                     <a class="dropdown-item" href="{{ route('teknisi.dashboard') }}">
                                         <i class="bi bi-speedometer2"></i> Dashboard Teknisi
+                                    </a>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                            @else
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('profile') }}">
+                                        <i class="bi bi-person"></i> Profile
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('booking.my') }}">
+                                        <i class="bi bi-clock-history"></i> Booking Saya
                                     </a>
                                 </li>
                                 <li>

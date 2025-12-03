@@ -19,7 +19,7 @@ Route::get('/', function () {
 
 // Jadwal Ruangan (timeline view)
 Route::get('/jadwal-ruangan', [RuanganController::class, 'publik'])
-    ->name('ruangan.publik');  // Ganti dari /ruangan-publik
+    ->name('ruangan.publik');
 
 // Form Booking untuk publik
 Route::get('/booking', [BookingController::class, 'create'])
@@ -37,20 +37,20 @@ Route::post('/check-availability', [RuanganController::class, 'checkAvailability
 // ROUTE UNTUK AUTH (Login Teknisi)
 // ========================
 
-// Login page
-Route::get('/login', [AuthController::class, 'showLogin'])
-    ->name('login')
-    ->middleware('guest');  // Hanya bisa diakses jika belum login
+// Login page - hanya untuk guest (belum login)
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])
+        ->name('login');
 
-// Login process
-Route::post('/login', [AuthController::class, 'login'])
-    ->name('login.post')
-    ->middleware('guest');
+    Route::post('/login', [AuthController::class, 'login'])
+        ->name('login.post');
+});
 
-// Logout
-Route::post('/logout', [AuthController::class, 'logout'])
-    ->name('logout')
-    ->middleware('auth');  // Hanya bisa diakses jika sudah login
+// Logout - hanya untuk auth (sudah login)
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])
+        ->name('logout');
+});
 
 // ========================
 // ROUTE UNTUK TEKNISI (harus login & role teknisi)
@@ -115,6 +115,16 @@ Route::prefix('api')->group(function () {
 
     Route::get('/bookings/today', [BookingController::class, 'getTodayBookings'])
         ->name('api.bookings.today');
+
+    Route::get('/stats', function () {
+        return response()->json([
+            'users' => \App\Models\User::count(),
+            'ruangans' => \App\Models\Ruangan::count(),
+            'bookings_today' => \App\Models\Booking::whereDate('tanggal', now())->count(),
+            'bookings_pending' => \App\Models\Booking::where('status', 'menunggu')->count(),
+            'server_time' => now()->format('Y-m-d H:i:s'),
+        ]);
+    })->name('api.stats');
 });
 
 // ========================
