@@ -6,9 +6,6 @@ use App\Http\Controllers\RuanganController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\DashboardController;
 
-// ========================
-// Halaman Utama Publik
-// ========================
 Route::get('/', function () {
     return view('welcome', ['activePage' => 'home']);
 })->name('home');
@@ -24,6 +21,8 @@ Route::get('/jadwal-ruangan', [RuanganController::class, 'publik'])
 // Form Booking untuk publik
 Route::get('/booking', [BookingController::class, 'create'])
     ->name('booking.publik');
+Route::get('/booking', [BookingController::class, 'create'])
+    ->name('booking.create');
 
 // Store Booking dari publik
 Route::post('/booking', [BookingController::class, 'store'])
@@ -132,6 +131,7 @@ Route::middleware(['auth', 'role:teknisi'])->group(function () {
     Route::prefix('teknisi/ruangan')->group(function () {
         Route::get('/', [RuanganController::class, 'index'])->name('ruangan.index');
         Route::get('/create', [RuanganController::class, 'create'])->name('ruangan.create');
+        Route::post('/create', [RuanganController::class, 'create'])->name('ruangan.create');
         Route::post('/', [RuanganController::class, 'store'])->name('ruangan.store');
         Route::get('/{ruangan}', [RuanganController::class, 'show'])->name('ruangan.show');
         Route::get('/{ruangan}/edit', [RuanganController::class, 'edit'])->name('ruangan.edit');
@@ -143,7 +143,7 @@ Route::middleware(['auth', 'role:teknisi'])->group(function () {
     Route::prefix('teknisi/bookings')->group(function () {
         Route::get('/', [BookingController::class, 'index'])->name('teknisi.bookings.index');
         Route::get('/create', [BookingController::class, 'createTeknisi'])->name('teknisi.bookings.create');
-        Route::post('/', [BookingController::class, 'storeTeknisi'])->name('teknisi.bookings.store');
+        Route::post('/store', [BookingController::class, 'storeTeknisi'])->name('teknisi.bookings.store');
 
         // PERBAIKAN: Tambah route untuk edit dan update teknisi
         Route::get('/{booking}/edit', [BookingController::class, 'editTeknisi'])->name('teknisi.bookings.edit');

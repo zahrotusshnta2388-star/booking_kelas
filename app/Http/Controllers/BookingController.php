@@ -283,21 +283,100 @@ class BookingController extends Controller
     /**
      * Display a listing of the resource (untuk teknisi).
      */
-    public function index()
+    public function index(Request $request)
     {
         if (Auth::user()->role !== 'teknisi') {
             abort(403, 'Unauthorized');
         }
+
+        $selectedDate = $request->query('date') ?? now()->format('Y-m-d');
+
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
 
         $bookings = Booking::with('ruangan')
             ->orderBy('tanggal', 'desc')
             ->orderBy('jam_mulai', 'asc')
             ->paginate(20);
 
+        $jamSlots = [];
+        for ($hour = 7; $hour <= 17; $hour++) {
+            $jamSlots[] = sprintf('%02d:00', $hour);
+        }
+
+        // 5. Mapping booking ke ruangan dan jam (FIXED - untuk colspan)
+        $bookingMap = [];
+        $occupiedSlots = []; // Untuk melacak slot yang sudah ditempati
+
+        foreach ($bookings as $booking) {
+            try {
+                $ruanganId = $booking->ruangan_id;
+
+                // Parse jam_mulai dan jam_selesai
+                $jamMulai = (string) $booking->jam_mulai;
+                $jamSelesai = (string) $booking->jam_selesai;
+
+                // Bersihkan format (hapus tanggal jika ada)
+                $jamMulai = preg_replace('/^\d{4}-\d{2}-\d{2}\s*/', '', $jamMulai);
+                $jamSelesai = preg_replace('/^\d{4}-\d{2}-\d{2}\s*/', '', $jamSelesai);
+
+                // Ambil jam saja (HH dari HH:MM:SS)
+                $startHour = (int) substr($jamMulai, 0, 2);
+                $endHour = (int) substr($jamSelesai, 0, 2);
+
+                // Validasi jam
+                if ($startHour < 7) $startHour = 7;
+                if ($endHour > 17) $endHour = 17;
+                if ($startHour >= $endHour) $endHour = $startHour + 1;
+
+                // Hitung durasi (berapa jam)
+                $duration = $endHour - $startHour;
+                if ($duration <= 0) $duration = 1;
+
+                // Slot key untuk jam mulai
+                $startSlotKey = sprintf('%02d:00', $startHour);
+
+                // Inisialisasi array jika belum ada
+                if (!isset($bookingMap[$ruanganId])) {
+                    $bookingMap[$ruanganId] = [];
+                }
+
+                if (!isset($occupiedSlots[$ruanganId])) {
+                    $occupiedSlots[$ruanganId] = [];
+                }
+
+                // Simpan booking di slot mulai dengan colspan
+                $bookingMap[$ruanganId][$startSlotKey] = [
+                    'booking' => $booking,
+                    'span' => $duration, // Jumlah cell yang akan di-span
+                    'startHour' => $startHour,
+                    'endHour' => $endHour,
+                    'jam_mulai_display' => substr($jamMulai, 0, 5),
+                    'jam_selesai_display' => substr($jamSelesai, 0, 5)
+                ];
+
+                // Tandai semua slot yang akan di-cover oleh colspan
+                for ($h = $startHour; $h < $endHour; $h++) {
+                    $slotKey = sprintf('%02d:00', $h);
+                    $occupiedSlots[$ruanganId][$slotKey] = true;
+                }
+            } catch (\Exception $e) {
+                \Log::error("Error processing booking: " . $e->getMessage());
+                continue;
+            }
+        }
+
         // PERBAIKAN DI SINI: 'teknisi.bookings.index' bukan 'teknisi.booking.index'
-        return view('teknisi.bookings.index', [
+        return view('publik.ruangan', [
+            'ruangans' => $ruangans,
             'bookings' => $bookings,
-            'activePage' => 'booking'
+            'jamSlots' => $jamSlots,
+            'bookingMap' => $bookingMap,
+            'selectedDate' => $selectedDate,
+            'occupiedSlots' => $occupiedSlots,
+            'activePage' => 'booking',
         ]);
     }
 

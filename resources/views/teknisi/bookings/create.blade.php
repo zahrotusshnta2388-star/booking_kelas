@@ -24,7 +24,7 @@
                 <h5 class="mb-0"><i class="bi bi-calendar-event"></i> Form Pemesanan Ruangan</h5>
             </div>
             <div class="card-body">
-                <form action="" method="POST" id="bookingForm">
+                <form action="{{ route('teknisi.bookings.store') }}" method="POST" id="bookingForm">
                     @csrf
 
                     <!-- BAGIAN 1: PILIH RUANGAN & WAKTU -->

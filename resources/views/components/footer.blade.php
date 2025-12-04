@@ -46,7 +46,7 @@
                             </a>
                         </li>
                         <li class="mb-2">
-                            <a href="{{ route('booking.publik') }}" class="text-white text-decoration-none">
+                            <a href="" class="text-white text-decoration-none">
                                 <i class="bi bi-calendar-plus"></i> Booking Ruangan
                             </a>
                         </li>
