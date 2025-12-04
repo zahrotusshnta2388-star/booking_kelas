@@ -8,21 +8,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Booking extends Model
 {
     use HasFactory;
-// Di app/Models/Booking.php
-protected $fillable = [
-    'ruangan_id',
-    'tanggal',
-    'jam_mulai',
-    'jam_selesai',
-    'nama_peminjam',
-    'nim',
-    'keperluan',
-    'no_hp',
-    'status',
-    // Tambahan untuk publik
-    'pemesan_email',
-    'jumlah_peserta',
 
+    protected $fillable = [
+        'ruangan_id',
+        'user_id', // TAMBAHKAN INI
+        'tanggal',
+        'jam_mulai',
+        'jam_selesai',
+        'nama_peminjam',
+        'nim',
+        'keperluan',
+        'no_hp',
+        'status',
+        'jumlah_peserta',
+        'pemesan_email',
+        'catatan'
     ];
 
     protected $casts = [
@@ -31,6 +31,13 @@ protected $fillable = [
         'jam_selesai' => 'datetime:H:i',
     ];
 
+    // RELASI KE USER
+    public function user()
+    {
+        return $this->belongsTo(User::class); // <-- TAMBAHKAN INI
+    }
+
+    // RELASI KE RUANGAN
     public function ruangan()
     {
         return $this->belongsTo(Ruangan::class);
@@ -62,7 +69,7 @@ protected $fillable = [
             'disetujui' => 'Disetujui',
             'ditolak' => 'Ditolak'
         ];
-        
+
         return $statusLabels[$this->status] ?? $this->status;
     }
 
@@ -74,9 +81,9 @@ protected $fillable = [
             'disetujui' => 'bg-success',
             'ditolak' => 'bg-danger'
         ];
-        
+
         $class = $badgeClasses[$this->status] ?? 'bg-secondary';
-        
+
         return '<span class="badge ' . $class . '">' . $this->status_label . '</span>';
     }
 

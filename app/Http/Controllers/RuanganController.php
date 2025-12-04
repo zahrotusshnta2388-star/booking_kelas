@@ -5,66 +5,106 @@ namespace App\Http\Controllers;
 use App\Models\Ruangan;
 use App\Models\Booking;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class RuanganController extends Controller
 {
     // ========== METHOD UNTUK PUBLIK ==========
-    public function publik()
+    public function publik(Request $request)
     {
-        // Dapatkan semua ruangan yang tersedia, urutkan lantai dan nama
+        // 1. Validasi dan ambil tanggal
+        $selectedDate = $request->query('date') ?? now()->format('Y-m-d');
+
+        // 2. Dapatkan semua ruangan yang tersedia, urutkan lantai dan nama
         $ruangans = Ruangan::where('status', 'tersedia')
             ->orderBy('lantai', 'asc')
             ->orderBy('nama', 'asc')
             ->get();
 
-        // Jika belum ada data ruangan, jalankan seeder atau buat dummy
-        if ($ruangans->count() == 0) {
-            \Artisan::call('db:seed', ['--class' => 'RuanganSeeder']);
-            $ruangans = Ruangan::where('status', 'tersedia')
-                ->orderBy('lantai', 'asc')
-                ->orderBy('nama', 'asc')
-                ->get();
-        }
-
-        // Dapatkan booking untuk hari ini
-        $today = now()->format('Y-m-d');
+        // 3. Dapatkan booking untuk tanggal yang dipilih
         $bookings = Booking::with('ruangan')
-            ->where('tanggal', $today)
+            ->where('tanggal', $selectedDate)
             ->whereIn('status', ['disetujui', 'menunggu'])
             ->orderBy('jam_mulai', 'asc')
             ->get();
 
-        // Buat array jam dari 07:00 sampai 17:00 (1 jam interval)
+        // 4. Buat array jam dari 07:00 sampai 17:00 (1 jam interval)
         $jamSlots = [];
         for ($hour = 7; $hour <= 17; $hour++) {
             $jamSlots[] = sprintf('%02d:00', $hour);
         }
 
-        // Mapping booking ke ruangan dan jam
+        // 5. Mapping booking ke ruangan dan jam (FIXED - untuk colspan)
         $bookingMap = [];
+        $occupiedSlots = []; // Untuk melacak slot yang sudah ditempati
+
         foreach ($bookings as $booking) {
-            $ruanganId = $booking->ruangan_id;
-            $jamMulai = substr($booking->jam_mulai, 0, 5); // Format HH:MM
-            $jamSelesai = substr($booking->jam_selesai, 0, 5);
+            try {
+                $ruanganId = $booking->ruangan_id;
 
-            // Tentukan slot jam yang dipakai
-            $startHour = (int)substr($jamMulai, 0, 2);
-            $endHour = (int)substr($jamSelesai, 0, 2);
+                // Parse jam_mulai dan jam_selesai
+                $jamMulai = (string) $booking->jam_mulai;
+                $jamSelesai = (string) $booking->jam_selesai;
 
-            for ($hour = $startHour; $hour < $endHour; $hour++) {
-                $slot = sprintf('%02d:00', $hour);
+                // Bersihkan format (hapus tanggal jika ada)
+                $jamMulai = preg_replace('/^\d{4}-\d{2}-\d{2}\s*/', '', $jamMulai);
+                $jamSelesai = preg_replace('/^\d{4}-\d{2}-\d{2}\s*/', '', $jamSelesai);
+
+                // Ambil jam saja (HH dari HH:MM:SS)
+                $startHour = (int) substr($jamMulai, 0, 2);
+                $endHour = (int) substr($jamSelesai, 0, 2);
+
+                // Validasi jam
+                if ($startHour < 7) $startHour = 7;
+                if ($endHour > 17) $endHour = 17;
+                if ($startHour >= $endHour) $endHour = $startHour + 1;
+
+                // Hitung durasi (berapa jam)
+                $duration = $endHour - $startHour;
+                if ($duration <= 0) $duration = 1;
+
+                // Slot key untuk jam mulai
+                $startSlotKey = sprintf('%02d:00', $startHour);
+
+                // Inisialisasi array jika belum ada
                 if (!isset($bookingMap[$ruanganId])) {
                     $bookingMap[$ruanganId] = [];
                 }
-                $bookingMap[$ruanganId][$slot] = [
+
+                if (!isset($occupiedSlots[$ruanganId])) {
+                    $occupiedSlots[$ruanganId] = [];
+                }
+
+                // Simpan booking di slot mulai dengan colspan
+                $bookingMap[$ruanganId][$startSlotKey] = [
                     'booking' => $booking,
-                    'span' => $endHour - $startHour, // Berapa jam durasinya
-                    'startSlot' => $startHour
+                    'span' => $duration, // Jumlah cell yang akan di-span
+                    'startHour' => $startHour,
+                    'endHour' => $endHour,
+                    'jam_mulai_display' => substr($jamMulai, 0, 5),
+                    'jam_selesai_display' => substr($jamSelesai, 0, 5)
                 ];
+
+                // Tandai semua slot yang akan di-cover oleh colspan
+                for ($h = $startHour; $h < $endHour; $h++) {
+                    $slotKey = sprintf('%02d:00', $h);
+                    $occupiedSlots[$ruanganId][$slotKey] = true;
+                }
+            } catch (\Exception $e) {
+                \Log::error("Error processing booking: " . $e->getMessage());
+                continue;
             }
         }
 
-        return view('publik.ruangan', compact('ruangans', 'bookings', 'jamSlots', 'bookingMap'));
+        // 6. Kirim data ke view
+        return view('publik.ruangan', compact(
+            'ruangans',
+            'bookings',
+            'jamSlots',
+            'bookingMap',
+            'selectedDate',
+            'occupiedSlots' // Kirim juga occupiedSlots ke view
+        ));
     }
 
 
@@ -207,7 +247,7 @@ class RuanganController extends Controller
         $today = now()->format('Y-m-d');
         $tomorrow = now()->addDay()->format('Y-m-d');
 
-        $bookings = Booking::with('ruangan')
+        $bookings = Booking::with(['ruangan', 'user']) // <-- TAMBAH 'user' juga di sini
             ->whereIn('tanggal', [$today, $tomorrow])
             ->whereIn('status', ['disetujui', 'menunggu'])
             ->orderBy('tanggal', 'asc')
@@ -215,5 +255,26 @@ class RuanganController extends Controller
             ->get();
 
         return view('publik.jadwal-ruangan', compact('ruangans', 'bookings'));
+    }
+
+    /**
+     * Method helper untuk dummy data ruangan
+     */
+    private function createDummyRuangan()
+    {
+        $dummyData = [
+            ['nama' => 'Ruang Rapat 1', 'lantai' => 1, 'kode' => 'RR1', 'kapasitas' => 20, 'status' => 'tersedia'],
+            ['nama' => 'Lab Komputer', 'lantai' => 2, 'kode' => 'LK1', 'kapasitas' => 30, 'status' => 'tersedia'],
+            ['nama' => 'Ruang Kelas 301', 'lantai' => 3, 'kode' => 'RK301', 'kapasitas' => 40, 'status' => 'tersedia'],
+        ];
+
+        foreach ($dummyData as $data) {
+            Ruangan::firstOrCreate(
+                ['kode' => $data['kode']],
+                $data
+            );
+        }
+
+        return Ruangan::where('status', 'tersedia')->get();
     }
 }

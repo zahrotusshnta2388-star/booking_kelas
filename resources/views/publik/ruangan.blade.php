@@ -4,14 +4,7 @@
 
 @push('styles')
     <style>
-        /* CSS khusus halaman ruangan (pindahkan dari style tag) */
-        .hero-ruangan {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            padding: 50px 0;
-            margin-bottom: 30px;
-        }
-
+        /* CSS khusus halaman ruangan */
         .hero-ruangan {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
@@ -29,8 +22,8 @@
             border: 1px solid #dee2e6;
             text-align: center;
             vertical-align: middle;
-            padding: 4px 2px;
-            font-size: 0.8rem;
+            padding: 8px 4px;
+            font-size: 0.85rem;
         }
 
         .time-table th {
@@ -39,34 +32,34 @@
             top: 0;
             z-index: 10;
             font-weight: bold;
-            min-width: 60px;
+            min-width: 70px;
         }
 
         .ruangan-name {
             background-color: #e3f2fd;
             font-weight: bold;
             text-align: left;
-            padding-left: 10px !important;
+            padding-left: 15px !important;
             position: sticky;
             left: 0;
             z-index: 5;
-            min-width: 180px;
+            min-width: 200px;
         }
 
         .booking-cell {
-            background-color: #d4edda;
-            border-radius: 3px;
+            background-color: #d4edda !important;
+            border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .booking-cell:hover {
             transform: scale(1.02);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
         }
 
         .booking-cell.pending {
-            background-color: #fff3cd;
+            background-color: #fff3cd !important;
         }
 
         .empty-cell {
@@ -75,49 +68,52 @@
 
         .floor-section {
             border-top: 3px solid #0d6efd;
-            margin-top: 20px;
-            padding-top: 15px;
+            margin-top: 25px;
+            padding-top: 20px;
         }
 
         .floor-title {
             background-color: #0d6efd;
             color: white;
-            padding: 8px 15px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             display: inline-block;
+            font-size: 1.2rem;
         }
 
         .table-container {
             overflow-x: auto;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             border: 1px solid #dee2e6;
-            border-radius: 5px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
         .time-slot-header {
             background-color: #6c757d !important;
             color: white;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
+            padding: 10px 5px;
         }
 
         .legend {
             display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
+            gap: 20px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
         }
 
         .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 3px;
+            width: 25px;
+            height: 25px;
+            border-radius: 4px;
         }
 
         .color-approved {
@@ -136,50 +132,126 @@
         /* Responsive */
         @media (max-width: 768px) {
             .ruangan-name {
-                min-width: 150px;
-                font-size: 0.75rem;
+                min-width: 160px;
+                font-size: 0.8rem;
             }
 
             .time-table th,
             .time-table td {
-                font-size: 0.7rem;
-                padding: 2px 1px;
-                min-width: 45px;
+                font-size: 0.75rem;
+                padding: 6px 3px;
+                min-width: 50px;
             }
+
+            .floor-title {
+                font-size: 1rem;
+                padding: 8px 15px;
+            }
+        }
+
+        /* Style untuk konten booking */
+        .booking-content {
+            padding: 5px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .booking-info {
+            text-align: center;
+        }
+
+        .booking-name {
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-bottom: 3px;
+            color: #333;
+        }
+
+        .booking-time {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .booking-purpose {
+            font-size: 0.75rem;
+            color: #555;
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
+
+        .booking-status {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        /* Tombol aksi */
+        .booking-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .booking-actions .btn {
+            padding: 3px 6px !important;
+            font-size: 0.7rem !important;
         }
     </style>
 @endpush
 
 
 @section('content')
-    <!-- Hero Section -->
+    <!-- HERO SECTION -->
     <section class="hero-ruangan">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <h1 class="display-5 fw-bold">Jadwal Ruangan JTI</h1>
-                    <p class="lead">Jadwal peminjaman ruangan per jam untuk hari ini ({{ date('d/m/Y') }})</p>
+                    <p class="lead">Jadwal peminjaman ruangan per jam untuk
+                        {{ \Carbon\Carbon::parse($selectedDate ?? now())->translatedFormat('l, d F Y') }}</p>
                 </div>
                 <div class="col-lg-4 text-lg-end">
                     <div class="btn-group" role="group">
-                        <button type="button" id="btnToday" class="btn btn-light">
+                        <button type="button" id="btnToday" class="btn btn-light"
+                            onclick="window.location.href='{{ url()->current() }}?date={{ date('Y-m-d') }}'">
                             <i class="bi bi-calendar-day"></i> Hari Ini
                         </button>
-                        <button type="button" id="btnTomorrow" class="btn btn-outline-light">
+                        <button type="button" id="btnTomorrow" class="btn btn-outline-light"
+                            onclick="window.location.href='{{ url()->current() }}?date={{ \Carbon\Carbon::tomorrow()->format('Y-m-d') }}'">
                             <i class="bi bi-calendar-plus"></i> Besok
                         </button>
+                        @auth
+                            @if (Auth::user()->role === 'teknisi')
+                                <a href="{{ route('ruangan.index') }}" class="btn btn-outline-light">
+                                    <i class="bi bi-gear"></i> Admin
+                                </a>
+                            @endif
+                        @endauth
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Filter dan Kontrol -->
+    <!-- FILTER DAN KONTROL -->
     <div class="container mb-4">
         <div class="row">
             <div class="col-md-4 mb-3">
-                <label for="dateFilter" class="form-label">Pilih Tanggal:</label>
-                <input type="date" class="form-control" id="dateFilter" value="{{ date('Y-m-d') }}">
+                <form method="GET" action="{{ url()->current() }}" id="dateForm">
+                    <label for="dateFilter" class="form-label">Pilih Tanggal:</label>
+                    <div class="input-group">
+                        <input type="date" class="form-control" id="dateFilter" name="date"
+                            value="{{ $selectedDate ?? date('Y-m-d') }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Filter
+                        </button>
+                    </div>
+                </form>
             </div>
             <div class="col-md-8">
                 <div class="legend">
@@ -200,220 +272,178 @@
         </div>
     </div>
 
-    <!-- Tabel Jadwal -->
+    <!-- TABEL JADWAL -->
     <div class="container">
-        <!-- Legenda dan Info -->
-        <div class="alert alert-info">
+        <div class="alert alert-light border">
             <i class="bi bi-info-circle me-2"></i>
-            <strong>Petunjuk:</strong> Klik pada kotak berwarna untuk melihat detail booking. Ruangan tersedia jika
-            kotak berwarna abu-abu.
+            <strong>Petunjuk:</strong> Klik pada kotak berwarna untuk melihat detail booking.
+            Booking akan menampilkan dari jam mulai sampai jam selesai.
         </div>
 
-        <!-- Lantai 2 -->
-        <div class="floor-section" id="floor2">
-            <h3 class="floor-title">Lantai 2</h3>
-            <div class="table-container">
-                <table class="time-table">
-                    <thead>
-                        <tr>
-                            <th class="ruangan-name">Ruangan / Jam</th>
-                            @foreach ($jamSlots as $jam)
-                                <th class="time-slot-header">{{ $jam }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($ruangans->where('lantai', 2) as $ruangan)
-                            @php
-                                $ruanganBookings = isset($bookingMap[$ruangan->id]) ? $bookingMap[$ruangan->id] : [];
-                            @endphp
-                            <tr>
-                                <td class="ruangan-name" title="{{ $ruangan->deskripsi }}">
-                                    {{ $ruangan->nama }}
-                                    <br>
-                                    <small class="text-muted">Kapasitas: {{ $ruangan->kapasitas }} orang</small>
-                                </td>
+        @php
+            $floors = [2, 3, 4];
+        @endphp
 
-                                @foreach ($jamSlots as $jam)
+        @foreach ($floors as $floor)
+            @if ($ruangans->where('lantai', $floor)->count() > 0)
+                <div class="floor-section" id="floor{{ $floor }}">
+                    <h3 class="floor-title">Lantai {{ $floor }}</h3>
+                    <div class="table-container">
+                        <table class="time-table">
+                            <thead>
+                                <tr>
+                                    <th class="ruangan-name">Ruangan / Jam</th>
+                                    @foreach ($jamSlots as $jam)
+                                        <th class="time-slot-header">{{ $jam }}</th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($ruangans->where('lantai', $floor) as $ruangan)
                                     @php
-                                        $hasBooking = isset($ruanganBookings[$jam]);
-                                        $booking = $hasBooking ? $ruanganBookings[$jam]['booking'] : null;
-                                        $isStartSlot =
-                                            $hasBooking &&
-                                            $ruanganBookings[$jam]['startSlot'] == (int) substr($jam, 0, 2);
+                                        // Ambil booking untuk ruangan ini
+                                        $ruanganBookings = $bookingMap[$ruangan->id] ?? [];
+                                        $ruanganOccupied = $occupiedSlots[$ruangan->id] ?? [];
                                     @endphp
+                                    <tr>
+                                        <td class="ruangan-name" title="{{ $ruangan->deskripsi ?? '' }}">
+                                            <strong>{{ $ruangan->nama }}</strong>
+                                            <br>
+                                            <small class="text-muted">Kapasitas: {{ $ruangan->kapasitas }} orang</small>
+                                            @if ($ruangan->fasilitas)
+                                                <br>
+                                                @php
+                                                    // Handle berbagai format fasilitas
+                                                    $fasilitasText = '';
+                                                    if (is_string($ruangan->fasilitas)) {
+                                                        // Coba decode JSON
+                                                        $decoded = json_decode($ruangan->fasilitas, true);
+                                                        if (
+                                                            json_last_error() === JSON_ERROR_NONE &&
+                                                            is_array($decoded)
+                                                        ) {
+                                                            $fasilitasText = implode(', ', $decoded);
+                                                        } else {
+                                                            $fasilitasText = $ruangan->fasilitas;
+                                                        }
+                                                    } elseif (is_array($ruangan->fasilitas)) {
+                                                        $fasilitasText = implode(', ', $ruangan->fasilitas);
+                                                    }
+                                                @endphp
+                                                @if (!empty($fasilitasText))
+                                                    <small class="text-muted">{{ Str::limit($fasilitasText, 30) }}</small>
+                                                @endif
+                                            @endif
+                                        </td>
 
-                                    @if ($hasBooking && $isStartSlot)
-                                        @php
-                                            $span = $ruanganBookings[$jam]['span'];
-                                            $statusClass =
-                                                $booking->status == 'disetujui'
-                                                    ? 'booking-cell'
-                                                    : 'booking-cell pending';
-                                        @endphp
-                                        <td class="{{ $statusClass }}" colspan="{{ $span }}" data-bs-toggle="modal"
-                                            data-bs-target="#detailModal" data-booking='@json($booking)'
-                                            title="{{ $booking->nama_peminjam }} - {{ $booking->keperluan }}">
-                                            <div class="fw-bold">{{ $booking->nama_peminjam }}</div>
-                                            <small>{{ $booking->keperluan }}</small>
-                                            <div
-                                                class="badge badge-sm {{ $booking->status == 'disetujui' ? 'bg-success' : 'bg-warning' }}">
-                                                {{ $booking->status == 'disetujui' ? '✓' : '⏳' }}
-                                            </div>
-                                        </td>
-                                    @elseif($hasBooking && !$isStartSlot)
-                                        <!-- Kosongkan cell karena sudah di-cover oleh colspan -->
-                                    @else
-                                        <td class="empty-cell">
-                                            <span class="text-muted">-</span>
-                                        </td>
-                                    @endif
+                                        @foreach ($jamSlots as $jam)
+                                            @php
+                                                // Cek apakah slot ini adalah awal dari booking
+                                                $isStartSlot = isset($ruanganBookings[$jam]);
+                                                $booking = $isStartSlot ? $ruanganBookings[$jam]['booking'] : null;
+                                                $span = $isStartSlot ? $ruanganBookings[$jam]['span'] ?? 1 : 1;
+
+                                                // Cek apakah slot ini bagian dari booking (tapi bukan awal)
+                                                $isOccupiedSlot = isset($ruanganOccupied[$jam]) && !$isStartSlot;
+                                            @endphp
+
+                                            @if ($isStartSlot)
+                                                @php
+                                                    $statusClass =
+                                                        ($booking->status ?? '') == 'disetujui'
+                                                            ? 'booking-cell'
+                                                            : 'booking-cell pending';
+                                                    $jamDisplay =
+                                                        ($ruanganBookings[$jam]['jam_mulai_display'] ??
+                                                            substr($booking->jam_mulai, 0, 5)) .
+                                                        ' - ' .
+                                                        ($ruanganBookings[$jam]['jam_selesai_display'] ??
+                                                            substr($booking->jam_selesai, 0, 5));
+                                                @endphp
+
+                                                <td class="{{ $statusClass }}" colspan="{{ $span }}"
+                                                    data-booking-id="{{ $booking->id ?? '' }}"
+                                                    title="{{ $booking->nama_peminjam ?? '' }} - {{ $booking->keperluan ?? '' }}">
+
+                                                    <div class="booking-content">
+                                                        <div class="booking-info">
+                                                            <div class="booking-name">
+                                                                {{ Str::limit($booking->nama_peminjam ?? '', 12) }}</div>
+                                                            <div class="booking-time">{{ $jamDisplay }}</div>
+                                                            <div class="booking-purpose">
+                                                                {{ Str::limit($booking->keperluan ?? '', 20) }}</div>
+                                                            <span
+                                                                class="booking-status badge {{ $booking->status == 'disetujui' ? 'bg-success' : 'bg-warning' }}">
+                                                                {{ $booking->status == 'disetujui' ? '✓ Disetujui' : '⏳ Menunggu' }}
+                                                            </span>
+                                                        </div>
+
+                                                        <div class="booking-actions">
+                                                            <!-- Tombol Detail -->
+                                                            <button type="button" class="btn btn-info btn-sm"
+                                                                onclick="event.stopPropagation(); showBookingDetail({{ $booking->id ?? 'null' }})"
+                                                                data-bs-toggle="modal" data-bs-target="#detailModal"
+                                                                title="Lihat Detail">
+                                                                <i class="bi bi-eye"></i>
+                                                            </button>
+
+                                                            @if (Auth::check() && ($booking->user_id == Auth::id() || Auth::user()->role === 'teknisi'))
+                                                                <!-- Tombol Edit -->
+                                                                <button type="button" class="btn btn-warning btn-sm"
+                                                                    onclick="event.stopPropagation(); editBooking({{ $booking->id ?? 'null' }})"
+                                                                    title="Edit Booking">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </button>
+
+                                                                <!-- Tombol Hapus -->
+                                                                <button type="button" class="btn btn-danger btn-sm"
+                                                                    onclick="event.stopPropagation(); deleteBooking({{ $booking->id ?? 'null' }})"
+                                                                    title="Hapus Booking">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+
+                                                                <!-- Tombol Approve (hanya untuk teknisi jika status menunggu) -->
+                                                                @if (Auth::user()->role === 'teknisi' && $booking->status == 'menunggu')
+                                                                    <button type="button" class="btn btn-success btn-sm"
+                                                                        onclick="event.stopPropagation(); approveBooking({{ $booking->id ?? 'null' }})"
+                                                                        title="Setujui Booking">
+                                                                        <i class="bi bi-check-circle"></i>
+                                                                    </button>
+                                                                @endif
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            @elseif($isOccupiedSlot)
+                                                <!-- Slot ini sudah di-cover oleh colspan dari slot sebelumnya -->
+                                                <!-- Tidak perlu render apa-apa karena sudah termasuk dalam colspan -->
+                                            @else
+                                                <td class="empty-cell">
+                                                    <span class="text-muted">-</span>
+                                                </td>
+                                            @endif
+                                        @endforeach
+                                    </tr>
                                 @endforeach
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+        @endforeach
+
+        @if ($bookings->count() == 0)
+            <div class="text-center py-5">
+                <div class="alert alert-info">
+                    <i class="bi bi-calendar-x fs-1"></i>
+                    <h4 class="mt-3">Tidak ada booking untuk tanggal {{ $selectedDate }}</h4>
+                    <p class="mb-0">Semua ruangan tersedia untuk peminjaman.</p>
+                </div>
             </div>
-        </div>
-
-        <!-- Lantai 3 -->
-        <div class="floor-section" id="floor3">
-            <h3 class="floor-title">Lantai 3</h3>
-            <div class="table-container">
-                <table class="time-table">
-                    <thead>
-                        <tr>
-                            <th class="ruangan-name">Ruangan / Jam</th>
-                            @foreach ($jamSlots as $jam)
-                                <th class="time-slot-header">{{ $jam }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($ruangans->where('lantai', 3) as $ruangan)
-                            @php
-                                $ruanganBookings = isset($bookingMap[$ruangan->id]) ? $bookingMap[$ruangan->id] : [];
-                            @endphp
-                            <tr>
-                                <td class="ruangan-name" title="{{ $ruangan->deskripsi }}">
-                                    {{ $ruangan->nama }}
-                                    <br>
-                                    <small class="text-muted">Kapasitas: {{ $ruangan->kapasitas }} orang</small>
-                                </td>
-
-                                @foreach ($jamSlots as $jam)
-                                    @php
-                                        $hasBooking = isset($ruanganBookings[$jam]);
-                                        $booking = $hasBooking ? $ruanganBookings[$jam]['booking'] : null;
-                                        $isStartSlot =
-                                            $hasBooking &&
-                                            $ruanganBookings[$jam]['startSlot'] == (int) substr($jam, 0, 2);
-                                    @endphp
-
-                                    @if ($hasBooking && $isStartSlot)
-                                        @php
-                                            $span = $ruanganBookings[$jam]['span'];
-                                            $statusClass =
-                                                $booking->status == 'disetujui'
-                                                    ? 'booking-cell'
-                                                    : 'booking-cell pending';
-                                        @endphp
-                                        <td class="{{ $statusClass }}" colspan="{{ $span }}"
-                                            data-bs-toggle="modal" data-bs-target="#detailModal"
-                                            data-booking='@json($booking)'
-                                            title="{{ $booking->nama_peminjam }} - {{ $booking->keperluan }}">
-                                            <div class="fw-bold">{{ $booking->nama_peminjam }}</div>
-                                            <small>{{ $booking->keperluan }}</small>
-                                            <div
-                                                class="badge badge-sm {{ $booking->status == 'disetujui' ? 'bg-success' : 'bg-warning' }}">
-                                                {{ $booking->status == 'disetujui' ? '✓' : '⏳' }}
-                                            </div>
-                                        </td>
-                                    @elseif($hasBooking && !$isStartSlot)
-                                        <!-- Kosongkan cell karena sudah di-cover oleh colspan -->
-                                    @else
-                                        <td class="empty-cell">
-                                            <span class="text-muted">-</span>
-                                        </td>
-                                    @endif
-                                @endforeach
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Lantai 4 -->
-        <div class="floor-section" id="floor4">
-            <h3 class="floor-title">Lantai 4</h3>
-            <div class="table-container">
-                <table class="time-table">
-                    <thead>
-                        <tr>
-                            <th class="ruangan-name">Ruangan / Jam</th>
-                            @foreach ($jamSlots as $jam)
-                                <th class="time-slot-header">{{ $jam }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($ruangans->where('lantai', 4) as $ruangan)
-                            @php
-                                $ruanganBookings = isset($bookingMap[$ruangan->id]) ? $bookingMap[$ruangan->id] : [];
-                            @endphp
-                            <tr>
-                                <td class="ruangan-name" title="{{ $ruangan->deskripsi }}">
-                                    {{ $ruangan->nama }}
-                                    <br>
-                                    <small class="text-muted">Kapasitas: {{ $ruangan->kapasitas }} orang</small>
-                                </td>
-
-                                @foreach ($jamSlots as $jam)
-                                    @php
-                                        $hasBooking = isset($ruanganBookings[$jam]);
-                                        $booking = $hasBooking ? $ruanganBookings[$jam]['booking'] : null;
-                                        $isStartSlot =
-                                            $hasBooking &&
-                                            $ruanganBookings[$jam]['startSlot'] == (int) substr($jam, 0, 2);
-                                    @endphp
-
-                                    @if ($hasBooking && $isStartSlot)
-                                        @php
-                                            $span = $ruanganBookings[$jam]['span'];
-                                            $statusClass =
-                                                $booking->status == 'disetujui'
-                                                    ? 'booking-cell'
-                                                    : 'booking-cell pending';
-                                        @endphp
-                                        <td class="{{ $statusClass }}" colspan="{{ $span }}"
-                                            data-bs-toggle="modal" data-bs-target="#detailModal"
-                                            data-booking='@json($booking)'
-                                            title="{{ $booking->nama_peminjam }} - {{ $booking->keperluan }}">
-                                            <div class="fw-bold">{{ $booking->nama_peminjam }}</div>
-                                            <small>{{ $booking->keperluan }}</small>
-                                            <div
-                                                class="badge badge-sm {{ $booking->status == 'disetujui' ? 'bg-success' : 'bg-warning' }}">
-                                                {{ $booking->status == 'disetujui' ? '✓' : '⏳' }}
-                                            </div>
-                                        </td>
-                                    @elseif($hasBooking && !$isStartSlot)
-                                        <!-- Kosongkan cell karena sudah di-cover oleh colspan -->
-                                    @else
-                                        <td class="empty-cell">
-                                            <span class="text-muted">-</span>
-                                        </td>
-                                    @endif
-                                @endforeach
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        @endif
     </div>
 
-    <!-- Modal Detail -->
+    <!-- MODAL DETAIL -->
     <div class="modal fade" id="detailModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -422,7 +452,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="detailContent">
-                    <!-- Detail akan diisi via JavaScript -->
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Memuat detail booking...</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
@@ -435,27 +470,234 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-                    const filterButtons = document.querySelectorAll('[data-filter]');
-                    const ruanganItems = document.querySelectorAll('.ruangan-item');
+            console.log('Halaman jadwal ruangan dimuat');
+            console.log('Total booking: {{ $bookings->count() }}');
 
-                    filterButtons.forEach(button => {
-                        button.addEventListener('click', function() {
-                            // Update active button
-                            filterButtons.forEach(btn => btn.classList.remove('active'));
-                            this.classList.add('active');
+            // Auto-submit form saat tanggal berubah
+            const dateFilter = document.getElementById('dateFilter');
+            if (dateFilter) {
+                dateFilter.addEventListener('change', function() {
+                    this.form.submit();
+                });
+            }
+        });
 
-                            const filter = this.getAttribute('data-filter');
+        // ==================== FUNGSI DETAIL BOOKING ====================
+        window.showBookingDetail = function(bookingId) {
+            if (!bookingId || bookingId === 'null') {
+                alert('Booking ID tidak valid');
+                return;
+            }
 
-                            // Filter ruangan
-                            ruanganItems.forEach(item => {
-                                if (filter === 'all' || item.getAttribute('data-gedung').includes(
-                                        filter)) {
-                                    item.style.display = 'block';
-                                } else {
-                                    item.style.display = 'none';
-                                }
-                            });
-                        });
+            // Tampilkan loading
+            document.getElementById('detailContent').innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Memuat detail booking...</p>
+                </div>
+            `;
+
+            // Fetch data booking
+            fetch(`/bookings/${bookingId}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Booking detail:', data);
+
+                    // Format tanggal
+                    const tanggal = new Date(data.tanggal).toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                     });
+
+                    // Buat tombol aksi berdasarkan role
+                    let actionButtons = '';
+                    const isOwner = {{ Auth::check() ? 'true' : 'false' }} && data.user_id ==
+                        {{ Auth::id() ?? 'null' }};
+                    const isTeknisi = {{ Auth::check() && Auth::user()->role === 'teknisi' ? 'true' : 'false' }};
+
+                    if (isOwner || isTeknisi) {
+                        actionButtons += `
+                        <button type="button" class="btn btn-primary me-2"
+                            onclick="editBooking(${bookingId})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-danger me-2"
+                            onclick="deleteBooking(${bookingId})">
+                            <i class="bi bi-trash"></i> Hapus
+                        </button>
+                    `;
+                    }
+
+                    if (isTeknisi && data.status === 'menunggu') {
+                        actionButtons += `
+                        <button type="button" class="btn btn-success"
+                            onclick="approveBooking(${bookingId})">
+                            <i class="bi bi-check-circle"></i> Setujui
+                        </button>
+                    `;
+                    }
+
+                    document.getElementById('detailContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">📋 Detail Peminjaman</h6>
+                            <p><strong>👤 Peminjam:</strong> ${data.nama_peminjam || '-'}</p>
+                            <p><strong>🎓 NIM:</strong> ${data.nim || '-'}</p>
+                            <p><strong>📞 No. HP:</strong> ${data.no_hp || '-'}</p>
+                            <p><strong>📧 Email:</strong> ${data.pemesan_email || data.email || '-'}</p>
+                            <p><strong>👥 Jumlah Peserta:</strong> ${data.jumlah_peserta || '1'}</p>
+                            <p><strong>📝 Keperluan:</strong> ${data.keperluan || '-'}</p>
+                            <p><strong>🏷️ Status:</strong> 
+                                <span class="badge ${data.status == 'disetujui' ? 'bg-success' : data.status == 'menunggu' ? 'bg-warning' : 'bg-danger'}">
+                                    ${data.status == 'disetujui' ? '✓ Disetujui' : data.status == 'menunggu' ? '⏳ Menunggu' : '✗ Ditolak'}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">🕒 Detail Waktu & Ruangan</h6>
+                            <p><strong>📅 Tanggal:</strong> ${tanggal}</p>
+                            <p><strong>⏰ Jam:</strong> ${data.jam_mulai || '-'} - ${data.jam_selesai || '-'}</p>
+                            <p><strong>🚪 Ruangan:</strong> ${data.ruangan?.nama || '-'}</p>
+                            <p><strong>🏢 Gedung:</strong> ${data.ruangan?.gedung || '-'}</p>
+                            <p><strong>🏗️ Lantai:</strong> ${data.ruangan?.lantai || '-'}</p>
+                            <p><strong>🧑‍🤝‍🧑 Kapasitas:</strong> ${data.ruangan?.kapasitas || '-'} orang</p>
+                            <p><strong>🔧 Fasilitas:</strong> ${data.ruangan?.fasilitas ? (typeof data.ruangan.fasilitas === 'string' ? data.ruangan.fasilitas : JSON.stringify(data.ruangan.fasilitas)) : '-'}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="fw-bold mb-2">📝 Catatan Tambahan</h6>
+                            <div class="p-3 bg-light rounded">
+                                ${data.catatan || '<em class="text-muted">Tidak ada catatan</em>'}
+                            </div>
+                        </div>
+                    </div>
+                    ${actionButtons ? `
+                        <hr>
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                ${actionButtons}
+                            </div>
+                        </div>
+                        ` : ''}
+                `;
+
+                    // Tampilkan modal
+                    const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('detailContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Gagal memuat detail booking. Silakan coba lagi.<br>
+                        <small>Error: ${error.message}</small>
+                    </div>
+                `;
+                });
+        };
+
+        // ==================== FUNGSI EDIT BOOKING ====================
+        window.editBooking = function(bookingId) {
+            if (!bookingId || bookingId === 'null') return;
+
+            if (confirm('Apakah Anda ingin mengedit booking ini?')) {
+                // Redirect ke halaman edit
+                window.location.href = `/bookings/${bookingId}/edit`;
+            }
+        };
+
+        // ==================== FUNGSI HAPUS BOOKING ====================
+        window.deleteBooking = function(bookingId) {
+            if (!bookingId || bookingId === 'null') return;
+
+            if (confirm('Apakah Anda yakin ingin menghapus booking ini?')) {
+                // Kirim request DELETE
+                fetch(`/bookings/${bookingId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message || 'Booking berhasil dihapus!');
+                            window.location.reload(); // Refresh halaman
+                        } else {
+                            alert('Gagal menghapus booking: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Terjadi kesalahan saat menghapus booking: ' + error.message);
+                    });
+            }
+        };
+
+        // ==================== FUNGSI APPROVE BOOKING ====================
+        window.approveBooking = function(bookingId) {
+            if (!bookingId || bookingId === 'null') return;
+
+            if (confirm('Apakah Anda ingin menyetujui booking ini?')) {
+                // Kirim request POST
+                fetch(`/bookings/${bookingId}/approve`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message || 'Booking berhasil disetujui!');
+                            window.location.reload(); // Refresh halaman
+                        } else {
+                            alert('Gagal menyetujui booking: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Terjadi kesalahan saat menyetujui booking: ' + error.message);
+                    });
+            }
+        };
+
+        // ==================== FUNGSI LOGOUT ====================
+        window.logout = function() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                document.getElementById('logout-form').submit();
+            }
+        };
     </script>
 @endpush

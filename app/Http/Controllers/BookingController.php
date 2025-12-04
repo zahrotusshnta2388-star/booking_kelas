@@ -5,28 +5,37 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use App\Models\Ruangan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class BookingController extends Controller
 {
     // ========================
     // METHOD UNTUK PUBLIK
     // ========================
-    
+
     /**
-     * Menampilkan form booking untuk publik
+     * Show form untuk booking dari publik
      */
-    public function createPublik()
+    public function create()
     {
-        $ruangans = Ruangan::where('status', 'tersedia')->get();
-        return view('booking.publik', compact('ruangans'));
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
+
+        return view('publik.booking', [
+            'ruangans' => $ruangans,
+            'activePage' => 'booking'
+        ]);
     }
-    
+
     /**
-     * Menyimpan booking dari publik
+     * Store booking dari publik
      */
-    public function storePublik(Request $request)
+    public function store(Request $request)
     {
-        // Validasi
         $validated = $request->validate([
             'ruangan_id' => 'required|exists:ruangans,id',
             'tanggal' => 'required|date|after_or_equal:today',
@@ -34,166 +43,294 @@ class BookingController extends Controller
             'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
             'nama_peminjam' => 'required|string|max:255',
             'nim' => 'nullable|string|max:20',
-            'email' => 'required|email|max:255',
-            'no_hp' => 'required|string|max:20',
-            'keperluan' => 'required|string|max:1000',
+            'no_hp' => 'nullable|string|max:15',
+            'keperluan' => 'required|string|max:500',
             'jumlah_peserta' => 'nullable|integer|min:1',
-            'syarat_ketentuan' => 'required|accepted',
-            'konfirmasi_data' => 'required|accepted',
         ]);
 
-        // PERBAIKAN: Handle nilai NIM yang tidak valid
-    if (isset($validated['nim']) && ($validated['nim'] == '?' || empty(trim($validated['nim'])))) {
-        $validated['nim'] = '-';
-    }
-
         // Cek ketersediaan ruangan
-        $isAvailable = Booking::where('ruangan_id', $request->ruangan_id)
-            ->where('tanggal', $request->tanggal)
-            ->where('status', 'disetujui')
-            ->where(function($query) use ($request) {
-                $query->whereBetween('jam_mulai', [$request->jam_mulai, $request->jam_selesai])
-                      ->orWhereBetween('jam_selesai', [$request->jam_mulai, $request->jam_selesai])
-                      ->orWhere(function($q) use ($request) {
-                          $q->where('jam_mulai', '<=', $request->jam_mulai)
-                            ->where('jam_selesai', '>=', $request->jam_selesai);
-                      });
-            })
-            ->doesntExist();
+        $isAvailable = $this->checkRoomAvailability(
+            $validated['ruangan_id'],
+            $validated['tanggal'],
+            $validated['jam_mulai'],
+            $validated['jam_selesai']
+        );
 
         if (!$isAvailable) {
             return back()->withErrors([
-                'jam_mulai' => 'Ruangan sudah dipesan pada jam tersebut.',
+                'jam_mulai' => 'Ruangan sudah dipesan pada waktu tersebut.'
             ])->withInput();
         }
 
-        // Simpan booking ke database
-        Booking::create([
-            'ruangan_id' => $request->ruangan_id,
-            'tanggal' => $request->tanggal,
-            'jam_mulai' => $request->jam_mulai,
-            'jam_selesai' => $request->jam_selesai,
-            'nama_peminjam' => $request->nama_peminjam,
-            'nim' => $request->nim,
-            'keperluan' => $request->keperluan,
-            'no_hp' => $request->no_hp,
-            'pemesan_email' => $request->email, // Mapping dari 'email' ke 'pemesan_email'
+        // Buat booking dengan status default 'menunggu'
+        $booking = Booking::create([
+            'ruangan_id' => $validated['ruangan_id'],
+            'tanggal' => $validated['tanggal'],
+            'jam_mulai' => $validated['jam_mulai'],
+            'jam_selesai' => $validated['jam_selesai'],
+            'nama_peminjam' => $validated['nama_peminjam'],
+            'nim' => $validated['nim'] ?? null,
+            'no_hp' => $validated['no_hp'] ?? null,
+            'keperluan' => $validated['keperluan'],
+            'jumlah_peserta' => $validated['jumlah_peserta'] ?? 1,
             'status' => 'menunggu',
-            'jumlah_peserta' => $request->jumlah_peserta,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'pemesan_email' => Auth::check() ? Auth::user()->email : null,
+            'user_id' => Auth::id() // Tambahkan user_id
         ]);
 
-        return redirect()->route('booking.publik')
-            ->with('success', 'Pengajuan booking berhasil dikirim! Teknisi akan menghubungi Anda dalam waktu 1x24 jam.');
+        return redirect()->route('ruangan.publik')
+            ->with('success', 'Booking berhasil diajukan! Menunggu konfirmasi teknisi.');
     }
-    
+
     /**
-     * Menampilkan jadwal untuk publik
+     * Show form jadwal publik
      */
     public function jadwalPublik()
     {
-        $bookings = Booking::with('ruangan')
-            ->where('status', 'disetujui')
-            ->where('tanggal', '>=', now()->format('Y-m-d'))
-            ->orderBy('tanggal')
-            ->orderBy('jam_mulai')
+        return view('publik.jadwal', ['activePage' => 'jadwal']);
+    }
+
+    // ========================
+    // METHOD UNTUK SEMUA USER (DETAIL, EDIT, HAPUS)
+    // ========================
+
+    /**
+     * Show detail booking (JSON untuk modal)
+     */
+    public function show($id)
+    {
+        $booking = Booking::with('ruangan', 'user')->findOrFail($id);
+
+        // Authorization: cek apakah user berhak melihat
+        if (!Auth::check() || (Auth::id() != $booking->user_id && Auth::user()->role !== 'teknisi')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return response()->json($booking);
+    }
+
+    /**
+     * Show form untuk edit booking
+     */
+    public function edit($id)
+    {
+        $booking = Booking::with('ruangan')->findOrFail($id);
+
+        // Authorization: cek apakah user berhak edit
+        if (Auth::id() != $booking->user_id && Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
             ->get();
-            
-        return view('booking.jadwal-publik', compact('bookings'));
+
+        // Tentukan view berdasarkan role user
+        if (Auth::user()->role === 'teknisi') {
+            // PERBAIKAN DI SINI: 'teknisi.bookings.edit' bukan 'teknisi.booking.edit'
+            return view('teknisi.bookings.edit', compact('booking', 'ruangans'));
+        } else {
+            return view('publik.booking-edit', compact('booking', 'ruangans'));
+        }
+    }
+
+    /**
+     * Update booking
+     */
+    public function update(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        // Authorization: cek apakah user berhak update
+        if (Auth::id() != $booking->user_id && Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Validasi untuk user biasa (tanpa field status)
+        $validationRules = [
+            'ruangan_id' => 'required|exists:ruangans,id',
+            'tanggal' => 'required|date|after_or_equal:today',
+            'jam_mulai' => 'required|date_format:H:i',
+            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'nama_peminjam' => 'required|string|max:255',
+            'nim' => 'nullable|string|max:20',
+            'no_hp' => 'required|string|max:15',
+            'keperluan' => 'required|string|max:500',
+            'jumlah_peserta' => 'required|integer|min:1',
+        ];
+
+        // Tambah validasi email hanya jika ada fieldnya
+        if ($request->has('pemesan_email')) {
+            $validationRules['pemesan_email'] = 'required|email';
+        }
+
+        // Tambah validasi catatan hanya jika ada fieldnya
+        if ($request->has('catatan')) {
+            $validationRules['catatan'] = 'nullable|string';
+        }
+
+        $validated = $request->validate($validationRules);
+
+        // Cek ketersediaan ruangan (kecuali jika tidak berubah)
+        if (
+            $booking->ruangan_id != $validated['ruangan_id'] ||
+            $booking->tanggal != $validated['tanggal'] ||
+            $booking->jam_mulai != $validated['jam_mulai'] ||
+            $booking->jam_selesai != $validated['jam_selesai']
+        ) {
+
+            $isAvailable = $this->checkRoomAvailability(
+                $validated['ruangan_id'],
+                $validated['tanggal'],
+                $validated['jam_mulai'],
+                $validated['jam_selesai'],
+                $booking->id
+            );
+
+            if (!$isAvailable) {
+                return back()->withErrors([
+                    'jam_mulai' => 'Ruangan sudah dipesan pada waktu tersebut.'
+                ])->withInput();
+            }
+        }
+
+        // Update hanya field yang ada di validated data
+        $booking->update($validated);
+
+        // Redirect berdasarkan role user
+        if (Auth::user()->role === 'teknisi') {
+            return redirect()->route('teknisi.bookings.index')
+                ->with('success', 'Booking berhasil diperbarui!');
+        } else {
+            return redirect()->route('booking.my')
+                ->with('success', 'Booking berhasil diperbarui!');
+        }
+    }
+
+    /**
+     * Delete booking
+     */
+    public function destroy($id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        // Authorization: cek apakah user berhak hapus
+        if (Auth::id() != $booking->user_id && Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $booking->delete();
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Booking berhasil dihapus!'
+            ]);
+        }
+
+        return redirect()->route('booking.my')
+            ->with('success', 'Booking berhasil dihapus!');
+    }
+
+    /**
+     * Approve booking (khusus teknisi)
+     */
+    public function approve($id)
+    {
+        // Hanya teknisi yang bisa approve
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $booking = Booking::findOrFail($id);
+
+        // Cek ketersediaan sebelum approve
+        $isAvailable = $this->checkRoomAvailability(
+            $booking->ruangan_id,
+            $booking->tanggal,
+            $booking->jam_mulai,
+            $booking->jam_selesai,
+            $booking->id
+        );
+
+        if (!$isAvailable) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ruangan sudah dipesan pada waktu tersebut.'
+                ], 422);
+            }
+            return back()->withErrors(['message' => 'Ruangan sudah dipesan pada waktu tersebut.']);
+        }
+
+        $booking->update(['status' => 'disetujui']);
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Booking berhasil disetujui!'
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Booking berhasil disetujui!');
     }
 
     // ========================
     // METHOD UNTUK TEKNISI (CRUD)
     // ========================
-    
+
     /**
-     * Menampilkan semua booking untuk teknisi
+     * Display a listing of the resource (untuk teknisi).
      */
     public function index()
     {
-        $bookings = Booking::with('ruangan')->orderBy('created_at', 'desc')->get();
-        return view('booking.index', compact('bookings'));
-    }
-    
-    /**
-     * Menampilkan form booking untuk teknisi
-     */
-    public function create()
-    {
-        $ruangans = Ruangan::all();
-        return view('booking.create', compact('ruangans'));
-    }
-    
-    /**
-     * Menyimpan booking dari teknisi
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'ruangan_id' => 'required|exists:ruangans,id',
-            'tanggal' => 'required|date',
-            'jam_mulai' => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-            'nama_peminjam' => 'required|string|max:255',
-            'nim' => ($request->nim == '?' || empty($request->nim)) ? '-' : $request->nim, // FIX            'no_hp' => 'required|string|max:20',
-            'keperluan' => 'required|string|max:1000',
-            'jumlah_peserta' => 'nullable|integer|min:1',
-            'status' => 'required|in:menunggu,disetujui,ditolak',
-        ]);
-        
-        // Cek ketersediaan jika status disetujui
-        if ($request->status == 'disetujui') {
-            $isAvailable = Booking::where('ruangan_id', $request->ruangan_id)
-                ->where('tanggal', $request->tanggal)
-                ->where('status', 'disetujui')
-                ->where('id', '!=', $request->id)
-                ->where(function($query) use ($request) {
-                    $query->whereBetween('jam_mulai', [$request->jam_mulai, $request->jam_selesai])
-                          ->orWhereBetween('jam_selesai', [$request->jam_mulai, $request->jam_selesai])
-                          ->orWhere(function($q) use ($request) {
-                              $q->where('jam_mulai', '<=', $request->jam_mulai)
-                                ->where('jam_selesai', '>=', $request->jam_selesai);
-                          });
-                })
-                ->doesntExist();
-                
-            if (!$isAvailable) {
-                return back()->withErrors([
-                    'jam_mulai' => 'Ruangan sudah dipesan pada jam tersebut.',
-                ])->withInput();
-            }
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
         }
-        
-        // Simpan booking
-        Booking::create($validated);
-        
-        return redirect()->route('booking.index')
-            ->with('success', 'Booking berhasil dibuat!');
+
+        $bookings = Booking::with('ruangan')
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_mulai', 'asc')
+            ->paginate(20);
+
+        // PERBAIKAN DI SINI: 'teknisi.bookings.index' bukan 'teknisi.booking.index'
+        return view('teknisi.bookings.index', [
+            'bookings' => $bookings,
+            'activePage' => 'booking'
+        ]);
     }
-    
+
     /**
-     * Menampilkan detail booking
+     * Show the form for creating a new resource (untuk teknisi).
      */
-    public function show(Booking $booking)
+    public function createTeknisi()
     {
-        return view('booking.show', compact('booking'));
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
+
+        // PERBAIKAN DI SINI: 'teknisi.bookings.create' bukan 'teknisi.booking.create'
+        return view('teknisi.bookings.create', [
+            'ruangans' => $ruangans,
+            'activePage' => 'booking'
+        ]);
     }
-    
+
     /**
-     * Menampilkan form edit booking
+     * Store a newly created resource (untuk teknisi).
      */
-    public function edit(Booking $booking)
+    public function storeTeknisi(Request $request)
     {
-        $ruangans = Ruangan::all();
-        return view('booking.edit', compact('booking', 'ruangans'));
-    }
-    
-    /**
-     * Update booking
-     */
-    public function update(Request $request, Booking $booking)
-    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
         $validated = $request->validate([
             'ruangan_id' => 'required|exists:ruangans,id',
             'tanggal' => 'required|date',
@@ -201,91 +338,417 @@ class BookingController extends Controller
             'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
             'nama_peminjam' => 'required|string|max:255',
             'nim' => 'nullable|string|max:20',
-            'pemesan_email' => 'required|email|max:255',
-            'no_hp' => 'required|string|max:20',
-            'keperluan' => 'required|string|max:1000',
-            'jumlah_peserta' => 'nullable|integer|min:1',
+            'no_hp' => 'nullable|string|max:15',
+            'keperluan' => 'required|string|max:500',
             'status' => 'required|in:menunggu,disetujui,ditolak',
+            'jumlah_peserta' => 'nullable|integer|min:1',
         ]);
-        
-        // Cek ketersediaan jika status disetujui
-        if ($request->status == 'disetujui') {
-            $isAvailable = Booking::where('ruangan_id', $request->ruangan_id)
-                ->where('tanggal', $request->tanggal)
-                ->where('status', 'disetujui')
-                ->where('id', '!=', $booking->id)
-                ->where(function($query) use ($request) {
-                    $query->whereBetween('jam_mulai', [$request->jam_mulai, $request->jam_selesai])
-                          ->orWhereBetween('jam_selesai', [$request->jam_mulai, $request->jam_selesai])
-                          ->orWhere(function($q) use ($request) {
-                              $q->where('jam_mulai', '<=', $request->jam_mulai)
-                                ->where('jam_selesai', '>=', $request->jam_selesai);
-                          });
-                })
-                ->doesntExist();
-                
+
+        // Cek ketersediaan (kecuali untuk booking yang ditolak)
+        if ($validated['status'] !== 'ditolak') {
+            $isAvailable = $this->checkRoomAvailability(
+                $validated['ruangan_id'],
+                $validated['tanggal'],
+                $validated['jam_mulai'],
+                $validated['jam_selesai']
+            );
+
             if (!$isAvailable) {
                 return back()->withErrors([
-                    'jam_mulai' => 'Ruangan sudah dipesan pada jam tersebut.',
+                    'jam_mulai' => 'Ruangan sudah dipesan pada waktu tersebut.'
                 ])->withInput();
             }
         }
-        
-        $booking->update($validated);
-        
-        return redirect()->route('booking.index')
-            ->with('success', 'Booking berhasil diupdate!');
+
+        Booking::create(array_merge($validated, [
+            'pemesan_email' => Auth::user()->email,
+            'user_id' => Auth::id()
+        ]));
+
+        return redirect()->route('teknisi.bookings.index')
+            ->with('success', 'Booking berhasil ditambahkan!');
     }
-    
+
     /**
-     * Hapus booking
+     * Show the form for editing the specified resource (teknisi).
      */
-    public function destroy(Booking $booking)
+    public function editTeknisi($id)
     {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $booking = Booking::findOrFail($id);
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
+
+        // PERBAIKAN DI SINI: 'teknisi.bookings.edit' bukan 'teknisi.booking.edit'
+        return view('teknisi.bookings.edit', [
+            'booking' => $booking,
+            'ruangans' => $ruangans,
+            'activePage' => 'booking'
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage (teknisi).
+     */
+    public function updateTeknisi(Request $request, $id)
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $booking = Booking::findOrFail($id);
+
+        $validated = $request->validate([
+            'ruangan_id' => 'required|exists:ruangans,id',
+            'tanggal' => 'required|date',
+            'jam_mulai' => 'required|date_format:H:i',
+            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'nama_peminjam' => 'required|string|max:255',
+            'nim' => 'nullable|string|max:20',
+            'no_hp' => 'nullable|string|max:15',
+            'keperluan' => 'required|string|max:500',
+            'status' => 'required|in:menunggu,disetujui,ditolak',
+            'jumlah_peserta' => 'nullable|integer|min:1',
+        ]);
+
+        // Cek ketersediaan (kecuali untuk booking yang ditolak)
+        if ($validated['status'] !== 'ditolak') {
+            $isAvailable = $this->checkRoomAvailability(
+                $validated['ruangan_id'],
+                $validated['tanggal'],
+                $validated['jam_mulai'],
+                $validated['jam_selesai'],
+                $booking->id // Exclude current booking
+            );
+
+            if (!$isAvailable) {
+                return back()->withErrors([
+                    'jam_mulai' => 'Ruangan sudah dipesan pada waktu tersebut.'
+                ])->withInput();
+            }
+        }
+
+        $booking->update($validated);
+
+        return redirect()->route('teknisi.bookings.index')
+            ->with('success', 'Booking berhasil diperbarui!');
+    }
+
+    /**
+     * Remove the specified resource from storage (teknisi).
+     */
+    public function destroyTeknisi($id)
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $booking = Booking::findOrFail($id);
         $booking->delete();
-        
-        return redirect()->route('booking.index')
+
+        return redirect()->route('teknisi.bookings.index')
             ->with('success', 'Booking berhasil dihapus!');
     }
-    
+
     /**
-     * Update status booking
+     * Update status booking (approve/reject) - teknisi.
      */
-    public function updateStatus(Request $request, Booking $booking)
+    public function updateStatus(Request $request, $id)
     {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
         $request->validate([
-            'status' => 'required|in:disetujui,ditolak,batal',
-            'catatan' => 'nullable|string|max:1000',
+            'status' => 'required|in:disetujui,ditolak'
         ]);
-        
-        // Jika menyetujui, cek ketersediaan
-        if ($request->status == 'disetujui') {
-            $isAvailable = Booking::where('ruangan_id', $booking->ruangan_id)
-                ->where('tanggal', $booking->tanggal)
-                ->where('status', 'disetujui')
-                ->where('id', '!=', $booking->id)
-                ->where(function($query) use ($booking) {
-                    $query->whereBetween('jam_mulai', [$booking->jam_mulai, $booking->jam_selesai])
-                          ->orWhereBetween('jam_selesai', [$booking->jam_mulai, $booking->jam_selesai])
-                          ->orWhere(function($q) use ($booking) {
-                              $q->where('jam_mulai', '<=', $booking->jam_mulai)
-                                ->where('jam_selesai', '>=', $booking->jam_selesai);
-                          });
-                })
-                ->doesntExist();
-                
+
+        $booking = Booking::findOrFail($id);
+
+        // Jika status berubah menjadi disetujui, cek ketersediaan
+        if ($request->status === 'disetujui') {
+            $isAvailable = $this->checkRoomAvailability(
+                $booking->ruangan_id,
+                $booking->tanggal,
+                $booking->jam_mulai,
+                $booking->jam_selesai,
+                $booking->id
+            );
+
             if (!$isAvailable) {
-                return back()->withErrors([
-                    'status' => 'Ruangan sudah dipesan pada jam tersebut.',
-                ])->withInput();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ruangan sudah dipesan pada waktu tersebut.'
+                ], 422);
             }
         }
-        
-        $booking->update([
-            'status' => $request->status,
-            'catatan' => $request->catatan,
+
+        $booking->update(['status' => $request->status]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status booking berhasil diubah!',
+            'status' => $request->status
         ]);
-        
-        return back()->with('success', 'Status booking berhasil diupdate!');
+    }
+    
+    // ========================
+    // QUICK ACTIONS DARI TABEL
+    // ========================
+
+    /**
+     * Quick Edit - untuk edit langsung dari tabel
+     */
+    public function quickEdit($id)
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $booking = Booking::with('ruangan')->findOrFail($id);
+        $ruangans = Ruangan::where('status', 'tersedia')->get();
+
+        return response()->json([
+            'success' => true,
+            'booking' => $booking,
+            'ruangans' => $ruangans,
+            'formatted_tanggal' => Carbon::parse($booking->tanggal)->format('Y-m-d')
+        ]);
+    }
+
+    /**
+     * Quick Update - update langsung dari tabel
+     */
+    public function quickUpdate(Request $request, $id)
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $booking = Booking::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'ruangan_id' => 'required|exists:ruangans,id',
+            'tanggal' => 'required|date',
+            'jam_mulai' => 'required|date_format:H:i',
+            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'nama_peminjam' => 'required|string|max:255',
+            'keperluan' => 'required|string|max:500',
+            'status' => 'required|in:menunggu,disetujui,ditolak',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+
+        // Cek ketersediaan (kecuali untuk booking yang ditolak)
+        if ($validated['status'] !== 'ditolak') {
+            $isAvailable = $this->checkRoomAvailability(
+                $validated['ruangan_id'],
+                $validated['tanggal'],
+                $validated['jam_mulai'],
+                $validated['jam_selesai'],
+                $booking->id
+            );
+
+            if (!$isAvailable) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ruangan sudah dipesan pada waktu tersebut.'
+                ], 422);
+            }
+        }
+
+        $booking->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking berhasil diperbarui!',
+            'booking' => $booking->load('ruangan')
+        ]);
+    }
+
+    /**
+     * Quick Delete - hapus langsung dari tabel
+     */
+    public function quickDelete($id)
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $booking = Booking::findOrFail($id);
+        $booking->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking berhasil dihapus!'
+        ]);
+    }
+
+    /**
+     * Quick View - lihat detail booking
+     */
+    public function quickView($id)
+    {
+        $booking = Booking::with('ruangan')->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'booking' => $booking,
+            'formatted_tanggal' => Carbon::parse($booking->tanggal)
+                ->translatedFormat('l, d F Y')
+        ]);
+    }
+
+    /**
+     * Get bookings for today (API)
+     */
+    public function getTodayBookings(Request $request)
+    {
+        $date = $request->query('date', now()->format('Y-m-d'));
+
+        $bookings = Booking::with('ruangan')
+            ->where('tanggal', $date)
+            ->whereIn('status', ['disetujui', 'menunggu'])
+            ->orderBy('jam_mulai', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'bookings' => $bookings,
+            'date' => $date
+        ]);
+    }
+
+    /**
+     * Show JSON for API (untuk modal di view publik)
+     */
+    public function showJson($id)
+    {
+        $booking = Booking::with('ruangan')->findOrFail($id);
+        return response()->json($booking);
+    }
+    
+    // ========================
+    // METHOD TAMBAHAN
+    // ========================
+
+    /**
+     * Show booking history for logged in user
+     */
+    public function myBookings()
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $bookings = Booking::with('ruangan')
+            ->where('user_id', Auth::id())
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_mulai', 'asc')
+            ->paginate(15);
+
+        return view('publik.my-bookings', [
+            'bookings' => $bookings,
+            'activePage' => 'my-bookings'
+        ]);
+    }
+
+    /**
+     * Check room availability
+     */
+    private function checkRoomAvailability($ruanganId, $tanggal, $jamMulai, $jamSelesai, $excludeBookingId = null)
+    {
+        $query = Booking::where('ruangan_id', $ruanganId)
+            ->where('tanggal', $tanggal)
+            ->where('status', 'disetujui')
+            ->where(function ($q) use ($jamMulai, $jamSelesai) {
+                $q->whereBetween('jam_mulai', [$jamMulai, $jamSelesai])
+                    ->orWhereBetween('jam_selesai', [$jamMulai, $jamSelesai])
+                    ->orWhere(function ($q2) use ($jamMulai, $jamSelesai) {
+                        $q2->where('jam_mulai', '<=', $jamMulai)
+                            ->where('jam_selesai', '>=', $jamSelesai);
+                    });
+            });
+
+        if ($excludeBookingId) {
+            $query->where('id', '!=', $excludeBookingId);
+        }
+
+        return $query->count() === 0;
+    }
+
+    /**
+     * Create dummy bookings for testing
+     */
+    public function createDummyBookings()
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $ruangans = Ruangan::all();
+        $today = now()->format('Y-m-d');
+
+        $dummyData = [
+            [
+                'nama_peminjam' => 'Budi Santoso',
+                'nim' => '20210001',
+                'jam_mulai' => '08:00',
+                'jam_selesai' => '10:00',
+                'keperluan' => 'Kuliah Web Programming',
+                'status' => 'disetujui',
+                'ruangan_id' => $ruangans->where('nama', 'LIKE', '%Workshop RSI%')->first()->id ?? 1
+            ],
+            [
+                'nama_peminjam' => 'Siti Aisyah',
+                'nim' => '20210002',
+                'jam_mulai' => '10:00',
+                'jam_selesai' => '12:00',
+                'keperluan' => 'Praktikum Jaringan Komputer',
+                'status' => 'menunggu',
+                'ruangan_id' => $ruangans->where('nama', 'LIKE', '%Lab RSI%')->first()->id ?? 2
+            ],
+            [
+                'nama_peminjam' => 'Ahmad Fauzi',
+                'nim' => '20210003',
+                'jam_mulai' => '13:00',
+                'jam_selesai' => '15:00',
+                'keperluan' => 'Rapat Prodi TI',
+                'status' => 'disetujui',
+                'ruangan_id' => $ruangans->where('nama', 'LIKE', '%3.1%')->first()->id ?? 10
+            ]
+        ];
+
+        foreach ($dummyData as $data) {
+            Booking::create(array_merge($data, [
+                'tanggal' => $today,
+                'pemesan_email' => 'dummy@example.com',
+                'no_hp' => '081234567890',
+                'jumlah_peserta' => 25,
+                'user_id' => Auth::id()
+            ]));
+        }
+
+        return redirect()->route('ruangan.publik')
+            ->with('success', 'Dummy bookings berhasil dibuat!');
     }
 }
