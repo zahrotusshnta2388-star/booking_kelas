@@ -235,13 +235,7 @@
                             onclick="window.location.href='{{ url()->current() }}?date={{ \Carbon\Carbon::tomorrow()->format('Y-m-d') }}'">
                             <i class="bi bi-calendar-plus"></i> Besok
                         </button>
-                        @auth
-                            @if (Auth::user()->role === 'teknisi')
-                                <a href="{{ route('ruangan.index') }}" class="btn btn-outline-light">
-                                    <i class="bi bi-gear"></i> Admin
-                                </a>
-                            @endif
-                        @endauth
+
                     </div>
                 </div>
             </div>
@@ -610,13 +604,13 @@
                             </div>
                         </div>
                         ${actionButtons ? `
-                                    <hr>
-                                    <div class="row mt-3">
-                                        <div class="col-12 text-center">
-                                            ${actionButtons}
-                                        </div>
-                                    </div>
-                                ` : ''}
+                                            <hr>
+                                            <div class="row mt-3">
+                                                <div class="col-12 text-center">
+                                                    ${actionButtons}
+                                                </div>
+                                            </div>
+                                        ` : ''}
                     `;
 
                     // Update konten modal

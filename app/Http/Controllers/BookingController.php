@@ -78,7 +78,7 @@ class BookingController extends Controller
             'user_id' => Auth::id() // Tambahkan user_id
         ]);
 
-        return redirect()->route('ruangan.publik')
+        return redirect('/jadwal-ruangan')
             ->with('success', 'Booking berhasil diajukan! Menunggu konfirmasi teknisi.');
     }
 
@@ -444,7 +444,7 @@ class BookingController extends Controller
             'user_id' => Auth::id()
         ]));
 
-        return redirect()->route('teknisi.bookings.index')
+        return redirect()->route('ruangan.publik')
             ->with('success', 'Booking berhasil ditambahkan!');
     }
 
