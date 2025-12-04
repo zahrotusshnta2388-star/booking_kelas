@@ -201,6 +201,16 @@
             padding: 3px 6px !important;
             font-size: 0.7rem !important;
         }
+
+        /* Fix untuk modal yang stuck */
+        .modal.fade .modal-dialog {
+            transform: translate(0, 0);
+            transition: transform 0.3s ease-out;
+        }
+
+        .modal.show .modal-dialog {
+            transform: none;
+        }
     </style>
 @endpush
 
@@ -382,7 +392,6 @@
                                                             <!-- Tombol Detail -->
                                                             <button type="button" class="btn btn-info btn-sm"
                                                                 onclick="event.stopPropagation(); showBookingDetail({{ $booking->id ?? 'null' }})"
-                                                                data-bs-toggle="modal" data-bs-target="#detailModal"
                                                                 title="Lihat Detail">
                                                                 <i class="bi bi-eye"></i>
                                                             </button>
@@ -443,16 +452,16 @@
         @endif
     </div>
 
-    <!-- MODAL DETAIL -->
-    <div class="modal fade" id="detailModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <!-- MODAL DETAIL - HANYA SATU DI SINI -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Detail Booking</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="detailModalLabel">Detail Booking</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="detailContent">
-                    <div class="text-center">
+                    <div class="text-center py-4">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
@@ -469,18 +478,10 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Halaman jadwal ruangan dimuat');
-            console.log('Total booking: {{ $bookings->count() }}');
-
-            // Auto-submit form saat tanggal berubah
-            const dateFilter = document.getElementById('dateFilter');
-            if (dateFilter) {
-                dateFilter.addEventListener('change', function() {
-                    this.form.submit();
-                });
-            }
-        });
+        // Pastikan Bootstrap tersedia
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap tidak ditemukan! Pastikan Bootstrap JS dimuat.');
+        }
 
         // ==================== FUNGSI DETAIL BOOKING ====================
         window.showBookingDetail = function(bookingId) {
@@ -488,6 +489,8 @@
                 alert('Booking ID tidak valid');
                 return;
             }
+
+            console.log('Menampilkan detail booking ID:', bookingId);
 
             // Tampilkan loading
             document.getElementById('detailContent').innerHTML = `
@@ -498,6 +501,24 @@
                     <p class="mt-2">Memuat detail booking...</p>
                 </div>
             `;
+
+            // Tampilkan modal DULU sebelum fetch data
+            const modalElement = document.getElementById('detailModal');
+            if (!modalElement) {
+                console.error('Modal #detailModal tidak ditemukan!');
+                alert('Modal tidak ditemukan. Silakan refresh halaman.');
+                return;
+            }
+
+            // Buat instance modal baru
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+
+            // Tampilkan modal
+            modal.show();
 
             // Fetch data booking
             fetch(`/bookings/${bookingId}`, {
@@ -531,85 +552,85 @@
 
                     if (isOwner || isTeknisi) {
                         actionButtons += `
-                        <button type="button" class="btn btn-primary me-2"
-                            onclick="editBooking(${bookingId})">
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
-                        <button type="button" class="btn btn-danger me-2"
-                            onclick="deleteBooking(${bookingId})">
-                            <i class="bi bi-trash"></i> Hapus
-                        </button>
-                    `;
+                            <button type="button" class="btn btn-primary me-2"
+                                onclick="window.editBooking(${bookingId})">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-danger me-2"
+                                onclick="window.deleteBooking(${bookingId})">
+                                <i class="bi bi-trash"></i> Hapus
+                            </button>
+                        `;
                     }
 
                     if (isTeknisi && data.status === 'menunggu') {
                         actionButtons += `
-                        <button type="button" class="btn btn-success"
-                            onclick="approveBooking(${bookingId})">
-                            <i class="bi bi-check-circle"></i> Setujui
-                        </button>
-                    `;
+                            <button type="button" class="btn btn-success"
+                                onclick="window.approveBooking(${bookingId})">
+                                <i class="bi bi-check-circle"></i> Setujui
+                            </button>
+                        `;
                     }
 
-                    document.getElementById('detailContent').innerHTML = `
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="fw-bold mb-3">📋 Detail Peminjaman</h6>
-                            <p><strong>👤 Peminjam:</strong> ${data.nama_peminjam || '-'}</p>
-                            <p><strong>🎓 NIM:</strong> ${data.nim || '-'}</p>
-                            <p><strong>📞 No. HP:</strong> ${data.no_hp || '-'}</p>
-                            <p><strong>📧 Email:</strong> ${data.pemesan_email || data.email || '-'}</p>
-                            <p><strong>👥 Jumlah Peserta:</strong> ${data.jumlah_peserta || '1'}</p>
-                            <p><strong>📝 Keperluan:</strong> ${data.keperluan || '-'}</p>
-                            <p><strong>🏷️ Status:</strong> 
-                                <span class="badge ${data.status == 'disetujui' ? 'bg-success' : data.status == 'menunggu' ? 'bg-warning' : 'bg-danger'}">
-                                    ${data.status == 'disetujui' ? '✓ Disetujui' : data.status == 'menunggu' ? '⏳ Menunggu' : '✗ Ditolak'}
-                                </span>
-                            </p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="fw-bold mb-3">🕒 Detail Waktu & Ruangan</h6>
-                            <p><strong>📅 Tanggal:</strong> ${tanggal}</p>
-                            <p><strong>⏰ Jam:</strong> ${data.jam_mulai || '-'} - ${data.jam_selesai || '-'}</p>
-                            <p><strong>🚪 Ruangan:</strong> ${data.ruangan?.nama || '-'}</p>
-                            <p><strong>🏢 Gedung:</strong> ${data.ruangan?.gedung || '-'}</p>
-                            <p><strong>🏗️ Lantai:</strong> ${data.ruangan?.lantai || '-'}</p>
-                            <p><strong>🧑‍🤝‍🧑 Kapasitas:</strong> ${data.ruangan?.kapasitas || '-'} orang</p>
-                            <p><strong>🔧 Fasilitas:</strong> ${data.ruangan?.fasilitas ? (typeof data.ruangan.fasilitas === 'string' ? data.ruangan.fasilitas : JSON.stringify(data.ruangan.fasilitas)) : '-'}</p>
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-12">
-                            <h6 class="fw-bold mb-2">📝 Catatan Tambahan</h6>
-                            <div class="p-3 bg-light rounded">
-                                ${data.catatan || '<em class="text-muted">Tidak ada catatan</em>'}
+                    // Format konten HTML
+                    const content = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3">📋 Detail Peminjaman</h6>
+                                <p><strong>👤 Peminjam:</strong> ${data.nama_peminjam || '-'}</p>
+                                <p><strong>🎓 NIM:</strong> ${data.nim || '-'}</p>
+                                <p><strong>📞 No. HP:</strong> ${data.no_hp || '-'}</p>
+                                <p><strong>📧 Email:</strong> ${data.pemesan_email || data.email || '-'}</p>
+                                <p><strong>👥 Jumlah Peserta:</strong> ${data.jumlah_peserta || '1'}</p>
+                                <p><strong>📝 Keperluan:</strong> ${data.keperluan || '-'}</p>
+                                <p><strong>🏷️ Status:</strong> 
+                                    <span class="badge ${data.status == 'disetujui' ? 'bg-success' : data.status == 'menunggu' ? 'bg-warning' : 'bg-danger'}">
+                                        ${data.status == 'disetujui' ? '✓ Disetujui' : data.status == 'menunggu' ? '⏳ Menunggu' : '✗ Ditolak'}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3">🕒 Detail Waktu & Ruangan</h6>
+                                <p><strong>📅 Tanggal:</strong> ${tanggal}</p>
+                                <p><strong>⏰ Jam:</strong> ${data.jam_mulai || '-'} - ${data.jam_selesai || '-'}</p>
+                                <p><strong>🚪 Ruangan:</strong> ${data.ruangan?.nama || '-'}</p>
+                                <p><strong>🏢 Gedung:</strong> ${data.ruangan?.gedung || '-'}</p>
+                                <p><strong>🏗️ Lantai:</strong> ${data.ruangan?.lantai || '-'}</p>
+                                <p><strong>🧑‍🤝‍🧑 Kapasitas:</strong> ${data.ruangan?.kapasitas || '-'} orang</p>
+                                <p><strong>🔧 Fasilitas:</strong> ${data.ruangan?.fasilitas ? (typeof data.ruangan.fasilitas === 'string' ? data.ruangan.fasilitas : JSON.stringify(data.ruangan.fasilitas)) : '-'}</p>
                             </div>
                         </div>
-                    </div>
-                    ${actionButtons ? `
                         <hr>
-                        <div class="row mt-3">
-                            <div class="col-12 text-center">
-                                ${actionButtons}
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="fw-bold mb-2">📝 Catatan Tambahan</h6>
+                                <div class="p-3 bg-light rounded">
+                                    ${data.catatan || '<em class="text-muted">Tidak ada catatan</em>'}
+                                </div>
                             </div>
                         </div>
-                        ` : ''}
-                `;
+                        ${actionButtons ? `
+                                    <hr>
+                                    <div class="row mt-3">
+                                        <div class="col-12 text-center">
+                                            ${actionButtons}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                    `;
 
-                    // Tampilkan modal
-                    const modal = new bootstrap.Modal(document.getElementById('detailModal'));
-                    modal.show();
+                    // Update konten modal
+                    document.getElementById('detailContent').innerHTML = content;
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     document.getElementById('detailContent').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        Gagal memuat detail booking. Silakan coba lagi.<br>
-                        <small>Error: ${error.message}</small>
-                    </div>
-                `;
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Gagal memuat detail booking. Silakan coba lagi.<br>
+                            <small>Error: ${error.message}</small>
+                        </div>
+                    `;
                 });
         };
 
@@ -618,6 +639,11 @@
             if (!bookingId || bookingId === 'null') return;
 
             if (confirm('Apakah Anda ingin mengedit booking ini?')) {
+                // Tutup modal dulu
+                const modal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+                if (modal) {
+                    modal.hide();
+                }
                 // Redirect ke halaman edit
                 window.location.href = `/bookings/${bookingId}/edit`;
             }
@@ -646,7 +672,13 @@
                     .then(data => {
                         if (data.success) {
                             alert(data.message || 'Booking berhasil dihapus!');
-                            window.location.reload(); // Refresh halaman
+                            // Tutup modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+                            if (modal) {
+                                modal.hide();
+                            }
+                            // Refresh halaman
+                            window.location.reload();
                         } else {
                             alert('Gagal menghapus booking: ' + (data.message || 'Unknown error'));
                         }
@@ -681,7 +713,13 @@
                     .then(data => {
                         if (data.success) {
                             alert(data.message || 'Booking berhasil disetujui!');
-                            window.location.reload(); // Refresh halaman
+                            // Tutup modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+                            if (modal) {
+                                modal.hide();
+                            }
+                            // Refresh halaman
+                            window.location.reload();
                         } else {
                             alert('Gagal menyetujui booking: ' + (data.message || 'Unknown error'));
                         }
@@ -690,13 +728,6 @@
                         console.error('Error:', error);
                         alert('Terjadi kesalahan saat menyetujui booking: ' + error.message);
                     });
-            }
-        };
-
-        // ==================== FUNGSI LOGOUT ====================
-        window.logout = function() {
-            if (confirm('Apakah Anda yakin ingin logout?')) {
-                document.getElementById('logout-form').submit();
             }
         };
     </script>
