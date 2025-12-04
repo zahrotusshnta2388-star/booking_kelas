@@ -448,6 +448,128 @@ class BookingController extends Controller
             ->with('success', 'Booking berhasil ditambahkan!');
     }
 
+    // ========================
+// METHOD UNTUK BULK BOOKING (TEKNISI)
+// ========================
+
+    /**
+     * Show form untuk booking massal
+     */
+    public function createBulk()
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $ruangans = Ruangan::where('status', 'tersedia')
+            ->orderBy('lantai', 'asc')
+            ->orderBy('nama', 'asc')
+            ->get();
+
+        return view('teknisi.bookings.create-bulk', [
+            'ruangans' => $ruangans,
+            'activePage' => 'booking'
+        ]);
+    }
+
+    /**
+     * Store booking massal
+     */
+    public function storeBulk(Request $request)
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        $validated = $request->validate([
+            'ruangan_id' => 'required|exists:ruangans,id',
+            'tanggal_mulai' => 'required|date',
+            'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
+            'jam_mulai' => 'required|date_format:H:i',
+            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
+            'hari' => 'required|array',
+            'hari.*' => 'in:senin,selasa,rabu,kamis,jumat,sabtu,minggu',
+            'nama_peminjam' => 'required|string|max:255',
+            'nim' => 'nullable|string|max:20',
+            'no_hp' => 'required|string|max:15',
+            'keperluan' => 'required|string|max:500',
+            'jumlah_peserta' => 'nullable|integer|min:1',
+        ]);
+
+        // Generate tanggal berdasarkan hari yang dipilih
+        $startDate = Carbon::parse($validated['tanggal_mulai']);
+        $endDate = Carbon::parse($validated['tanggal_selesai']);
+        $hariMapping = [
+            'senin' => 1,
+            'selasa' => 2,
+            'rabu' => 3,
+            'kamis' => 4,
+            'jumat' => 5,
+            'sabtu' => 6,
+            'minggu' => 0,
+        ];
+
+        $createdCount = 0;
+        $errors = [];
+
+        // Loop melalui setiap tanggal
+        for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
+            $dayOfWeek = $date->dayOfWeek; // 0 (Minggu) sampai 6 (Sabtu)
+
+            // Cek apakah hari ini dipilih
+            $isSelectedDay = false;
+            foreach ($validated['hari'] as $hari) {
+                if ($dayOfWeek == $hariMapping[$hari]) {
+                    $isSelectedDay = true;
+                    break;
+                }
+            }
+
+            if ($isSelectedDay) {
+                // Cek ketersediaan ruangan
+                $isAvailable = $this->checkRoomAvailability(
+                    $validated['ruangan_id'],
+                    $date->format('Y-m-d'),
+                    $validated['jam_mulai'],
+                    $validated['jam_selesai']
+                );
+
+                if ($isAvailable) {
+                    // Buat booking
+                    Booking::create([
+                        'ruangan_id' => $validated['ruangan_id'],
+                        'tanggal' => $date->format('Y-m-d'),
+                        'jam_mulai' => $validated['jam_mulai'],
+                        'jam_selesai' => $validated['jam_selesai'],
+                        'nama_peminjam' => $validated['nama_peminjam'],
+                        'nim' => $validated['nim'] ?? null,
+                        'no_hp' => $validated['no_hp'] ?? null,
+                        'keperluan' => $validated['keperluan'],
+                        'jumlah_peserta' => $validated['jumlah_peserta'] ?? 1,
+                        'status' => 'disetujui',
+                        'pemesan_email' => Auth::user()->email,
+                        'user_id' => Auth::id()
+                    ]);
+                    $createdCount++;
+                } else {
+                    $errors[] = "Ruangan tidak tersedia pada {$date->translatedFormat('l, d F Y')}";
+                }
+            }
+        }
+
+        if ($createdCount > 0) {
+            $message = "Berhasil membuat {$createdCount} booking!";
+            if (!empty($errors)) {
+                $message .= " " . implode(', ', $errors);
+            }
+            return redirect()->route('teknisi.bookings.index')
+                ->with('success', $message);
+        } else {
+            return back()->withErrors(['message' => 'Tidak ada booking yang berhasil dibuat. ' . implode(', ', $errors)])
+                ->withInput();
+        }
+    }
+
     /**
      * Show the form for editing the specified resource (teknisi).
      */

@@ -159,6 +159,13 @@ Route::middleware(['auth', 'role:teknisi'])->group(function () {
         Route::post('/{booking}/approve', [BookingController::class, 'approve'])
             ->name('teknisi.bookings.approve');
 
+        // BULK BOOKING - TAMBAHKAN DI SINI
+        Route::get('/create-bulk', [BookingController::class, 'createBulk'])
+            ->name('teknisi.bookings.create-bulk');
+        Route::post('/store-bulk', [BookingController::class, 'storeBulk'])
+            ->name('teknisi.bookings.store-bulk');
+
+
         // Quick actions
         Route::get('/{booking}/quick-edit', [BookingController::class, 'quickEdit'])
             ->name('teknisi.bookings.quick-edit');
@@ -170,6 +177,8 @@ Route::middleware(['auth', 'role:teknisi'])->group(function () {
             ->name('teknisi.bookings.quick-view');
     });
 });
+
+
 
 // ========================
 // Fallback untuk error 404

@@ -73,6 +73,9 @@
                             <a href="{{ route('teknisi.bookings.create') }}" class="btn btn-outline-success">
                                 <i class="bi bi-calendar-plus"></i> Buat Booking Baru
                             </a>
+                            <a href="{{ route('teknisi.bookings.create-bulk') }}" class="btn btn-outline-success">
+                                <i class="bi bi-calendar-plus"></i> Buat Booking massal
+                            </a>
 
                         </div>
                     </div>

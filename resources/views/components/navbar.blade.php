@@ -63,7 +63,7 @@
                             @if (Auth::user()->role === 'teknisi')
                                 <li>
                                     <a class="dropdown-item" href="{{ route('teknisi.dashboard') }}">
-                                        <i class="bi bi-speedometer2"></i> Dashboard Teknisi
+                                        <i class="bi bi-speedometer2"></i> Admin
                                     </a>
                                 </li>
                                 <li>
