@@ -404,15 +404,6 @@
                                                                     title="Hapus Booking">
                                                                     <i class="bi bi-trash"></i>
                                                                 </button>
-
-                                                                <!-- Tombol Approve (hanya untuk teknisi jika status menunggu) -->
-                                                                @if (Auth::user()->role === 'teknisi' && $booking->status == 'menunggu')
-                                                                    <button type="button" class="btn btn-success btn-sm"
-                                                                        onclick="event.stopPropagation(); approveBooking({{ $booking->id ?? 'null' }})"
-                                                                        title="Setujui Booking">
-                                                                        <i class="bi bi-check-circle"></i>
-                                                                    </button>
-                                                                @endif
                                                             @endif
                                                         </div>
                                                     </div>
@@ -515,7 +506,7 @@
             modal.show();
 
             // Fetch data booking
-            fetch(`/bookings/${bookingId}`, {
+            fetch(`/teknisi/bookings/${bookingId}/show`, {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -557,14 +548,6 @@
                         `;
                     }
 
-                    if (isTeknisi && data.status === 'menunggu') {
-                        actionButtons += `
-                            <button type="button" class="btn btn-success"
-                                onclick="window.approveBooking(${bookingId})">
-                                <i class="bi bi-check-circle"></i> Setujui
-                            </button>
-                        `;
-                    }
 
                     // Format konten HTML
                     const content = `
@@ -591,7 +574,13 @@
                                 <p><strong>🏢 Gedung:</strong> ${data.ruangan?.gedung || '-'}</p>
                                 <p><strong>🏗️ Lantai:</strong> ${data.ruangan?.lantai || '-'}</p>
                                 <p><strong>🧑‍🤝‍🧑 Kapasitas:</strong> ${data.ruangan?.kapasitas || '-'} orang</p>
-                                <p><strong>🔧 Fasilitas:</strong> ${data.ruangan?.fasilitas ? (typeof data.ruangan.fasilitas === 'string' ? data.ruangan.fasilitas : JSON.stringify(data.ruangan.fasilitas)) : '-'}</p>
+                                <p><strong>🔧 Fasilitas:</strong> 
+    ${data.ruangan?.fasilitas ? 
+        (Array.isArray(data.ruangan.fasilitas) ? 
+            data.ruangan.fasilitas.map(f => `• ${f}`).join('<br>') : 
+            data.ruangan.fasilitas) 
+        : '-'}
+</p>
                             </div>
                         </div>
                         <hr>
@@ -604,13 +593,13 @@
                             </div>
                         </div>
                         ${actionButtons ? `
-                                            <hr>
-                                            <div class="row mt-3">
-                                                <div class="col-12 text-center">
-                                                    ${actionButtons}
-                                                </div>
-                                            </div>
-                                        ` : ''}
+                                                                        <hr>
+                                                                        <div class="row mt-3">
+                                                                            <div class="col-12 text-center">
+                                                                                ${actionButtons}
+                                                                            </div>
+                                                                        </div>
+                                                                    ` : ''}
                     `;
 
                     // Update konten modal
@@ -639,7 +628,7 @@
                     modal.hide();
                 }
                 // Redirect ke halaman edit
-                window.location.href = `/bookings/${bookingId}/edit`;
+                window.location.href = `/teknisi/bookings/${bookingId}/edit`;
             }
         };
 
@@ -649,7 +638,7 @@
 
             if (confirm('Apakah Anda yakin ingin menghapus booking ini?')) {
                 // Kirim request DELETE
-                fetch(`/bookings/${bookingId}`, {
+                fetch(`/teknisi/bookings/${bookingId}/delete`, {
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -680,47 +669,6 @@
                     .catch(error => {
                         console.error('Error:', error);
                         alert('Terjadi kesalahan saat menghapus booking: ' + error.message);
-                    });
-            }
-        };
-
-        // ==================== FUNGSI APPROVE BOOKING ====================
-        window.approveBooking = function(bookingId) {
-            if (!bookingId || bookingId === 'null') return;
-
-            if (confirm('Apakah Anda ingin menyetujui booking ini?')) {
-                // Kirim request POST
-                fetch(`/bookings/${bookingId}/approve`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            alert(data.message || 'Booking berhasil disetujui!');
-                            // Tutup modal
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
-                            if (modal) {
-                                modal.hide();
-                            }
-                            // Refresh halaman
-                            window.location.reload();
-                        } else {
-                            alert('Gagal menyetujui booking: ' + (data.message || 'Unknown error'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Terjadi kesalahan saat menyetujui booking: ' + error.message);
                     });
             }
         };

@@ -234,47 +234,4 @@ class RuanganController extends Controller
             'message' => $booking ? 'Ruangan sudah dipesan' : 'Ruangan tersedia'
         ]);
     }
-
-
-    public function jadwalRuangan()
-    {
-        // Ambil semua ruangan
-        $ruangans = Ruangan::orderBy('lantai', 'asc')
-            ->orderBy('nama', 'asc')
-            ->get();
-
-        // Ambil data booking untuk hari ini dan besok
-        $today = now()->format('Y-m-d');
-        $tomorrow = now()->addDay()->format('Y-m-d');
-
-        $bookings = Booking::with(['ruangan', 'user']) // <-- TAMBAH 'user' juga di sini
-            ->whereIn('tanggal', [$today, $tomorrow])
-            ->whereIn('status', ['disetujui', 'menunggu'])
-            ->orderBy('tanggal', 'asc')
-            ->orderBy('jam_mulai', 'asc')
-            ->get();
-
-        return view('publik.jadwal-ruangan', compact('ruangans', 'bookings'));
-    }
-
-    /**
-     * Method helper untuk dummy data ruangan
-     */
-    private function createDummyRuangan()
-    {
-        $dummyData = [
-            ['nama' => 'Ruang Rapat 1', 'lantai' => 1, 'kode' => 'RR1', 'kapasitas' => 20, 'status' => 'tersedia'],
-            ['nama' => 'Lab Komputer', 'lantai' => 2, 'kode' => 'LK1', 'kapasitas' => 30, 'status' => 'tersedia'],
-            ['nama' => 'Ruang Kelas 301', 'lantai' => 3, 'kode' => 'RK301', 'kapasitas' => 40, 'status' => 'tersedia'],
-        ];
-
-        foreach ($dummyData as $data) {
-            Ruangan::firstOrCreate(
-                ['kode' => $data['kode']],
-                $data
-            );
-        }
-
-        return Ruangan::where('status', 'tersedia')->get();
-    }
 }

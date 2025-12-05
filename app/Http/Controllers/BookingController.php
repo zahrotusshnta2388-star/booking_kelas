@@ -101,10 +101,6 @@ class BookingController extends Controller
     {
         $booking = Booking::with('ruangan', 'user')->findOrFail($id);
 
-        // Authorization: cek apakah user berhak melihat
-        if (!Auth::check() || (Auth::id() != $booking->user_id && Auth::user()->role !== 'teknisi')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         return response()->json($booking);
     }
@@ -491,8 +487,8 @@ class BookingController extends Controller
             'hari.*' => 'in:senin,selasa,rabu,kamis,jumat,sabtu,minggu',
             'nama_peminjam' => 'required|string|max:255',
             'nim' => 'nullable|string|max:20',
-            'no_hp' => 'required|string|max:15',
-            'keperluan' => 'required|string|max:500',
+            'no_hp' => 'nullable|string|max:15',
+            'keperluan' => 'nullable|string|max:500',
             'jumlah_peserta' => 'nullable|integer|min:1',
         ]);
 
@@ -543,8 +539,8 @@ class BookingController extends Controller
                         'jam_selesai' => $validated['jam_selesai'],
                         'nama_peminjam' => $validated['nama_peminjam'],
                         'nim' => $validated['nim'] ?? null,
-                        'no_hp' => $validated['no_hp'] ?? null,
-                        'keperluan' => $validated['keperluan'],
+                        'no_hp' => $validated['no_hp'] ?? 0,
+                        'keperluan' => $validated['keperluan'] ?? '',
                         'jumlah_peserta' => $validated['jumlah_peserta'] ?? 1,
                         'status' => 'disetujui',
                         'pemesan_email' => Auth::user()->email,
@@ -556,13 +552,13 @@ class BookingController extends Controller
                 }
             }
         }
-
         if ($createdCount > 0) {
             $message = "Berhasil membuat {$createdCount} booking!";
             if (!empty($errors)) {
                 $message .= " " . implode(', ', $errors);
             }
-            return redirect()->route('teknisi.bookings.index')
+
+            return redirect()->route('teknisi.dashboard')
                 ->with('success', $message);
         } else {
             return back()->withErrors(['message' => 'Tidak ada booking yang berhasil dibuat. ' . implode(', ', $errors)])
@@ -636,7 +632,7 @@ class BookingController extends Controller
 
         $booking->update($validated);
 
-        return redirect()->route('teknisi.bookings.index')
+        return redirect()->route('ruangan.publik')
             ->with('success', 'Booking berhasil diperbarui!');
     }
 
@@ -855,23 +851,6 @@ class BookingController extends Controller
     /**
      * Show booking history for logged in user
      */
-    public function myBookings()
-    {
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        $bookings = Booking::with('ruangan')
-            ->where('user_id', Auth::id())
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('jam_mulai', 'asc')
-            ->paginate(15);
-
-        return view('publik.my-bookings', [
-            'bookings' => $bookings,
-            'activePage' => 'my-bookings'
-        ]);
-    }
 
     /**
      * Check room availability

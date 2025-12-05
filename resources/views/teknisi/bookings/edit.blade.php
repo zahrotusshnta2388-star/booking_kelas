@@ -64,19 +64,20 @@
                 <div class="col-md-6 mb-3">
                     <label for="tanggal" class="form-label">Tanggal *</label>
                     <input type="date" class="form-control" id="tanggal" name="tanggal"
-                        value="{{ old('tanggal', $booking->tanggal) }}" required>
+                        value="{{ old('tanggal', \Carbon\Carbon::parse($booking->tanggal)->format('Y-m-d')) }}" required>
                 </div>
 
                 <div class="col-md-3 mb-3">
                     <label for="jam_mulai" class="form-label">Jam Mulai *</label>
                     <input type="time" class="form-control" id="jam_mulai" name="jam_mulai"
-                        value="{{ old('jam_mulai', $booking->jam_mulai) }}" required>
+                        value="{{ old('jam_mulai', \Carbon\Carbon::parse($booking->jam_mulai)->format('H:i')) }}" required>
                 </div>
 
                 <div class="col-md-3 mb-3">
                     <label for="jam_selesai" class="form-label">Jam Selesai *</label>
                     <input type="time" class="form-control" id="jam_selesai" name="jam_selesai"
-                        value="{{ old('jam_selesai', $booking->jam_selesai) }}" required>
+                        value="{{ old('jam_selesai', \Carbon\Carbon::parse($booking->jam_selesai)->format('H:i')) }}"
+                        required>
                 </div>
             </div>
 

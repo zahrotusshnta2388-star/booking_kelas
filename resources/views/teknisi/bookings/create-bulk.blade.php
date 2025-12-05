@@ -36,7 +36,7 @@
                                     <label for="no_hp" class="form-label">No. HP <span
                                             class="text-danger">*</span></label>
                                     <input type="tel" class="form-control @error('no_hp') is-invalid @enderror"
-                                        id="no_hp" name="no_hp" value="{{ old('no_hp') }}" required>
+                                        id="no_hp" name="no_hp" value="{{ old('no_hp') }}">
                                     @error('no_hp')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -151,7 +151,7 @@
                             <div class="mb-3">
                                 <label for="keperluan" class="form-label">Keperluan *</label>
                                 <textarea class="form-control @error('keperluan') is-invalid @enderror" id="keperluan" name="keperluan"
-                                    rows="3" required>{{ old('keperluan') }}</textarea>
+                                    rows="3">{{ old('keperluan') }}</textarea>
                                 @error('keperluan')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
