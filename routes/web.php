@@ -13,7 +13,10 @@ Route::get('/jadwal-ruangan', [RuanganController::class, 'publik'])
     ->name('ruangan.publik');
 Route::post('/check-availability', [RuanganController::class, 'checkAvailability'])
     ->name('ruangan.checkAvailability');
-Route::get('teknisi/bookings/{booking}/show', [BookingController::class, 'show'])->name('teknisi.bookings.edit');
+
+Route::get('/teknisi/jadwal-ruangan', [RuanganController::class, 'jadwalRuangan'])
+    ->name('ruangan.jadwal');
+
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])
@@ -28,8 +31,8 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/teknisi/dashboard', [DashboardController::class, 'index'])
     ->name('teknisi.dashboard');
-Route::get('/teknisi/jadwal-ruangan', [RuanganController::class, 'jadwalRuangan'])
-    ->name('ruangan.jadwal');
+
+Route::get('teknisi/bookings/{booking}/show', [BookingController::class, 'show'])->name('teknisi.bookings.edit');
 
 Route::middleware(['auth', 'role:teknisi'])->group(function () {
     Route::prefix('teknisi/bookings')->group(function () {
