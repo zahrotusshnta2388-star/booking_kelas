@@ -395,4 +395,13 @@ class BookingController extends Controller
 
         return response()->json($booking);
     }
+
+    public function createViaExcel()
+    {
+        if (Auth::user()->role !== 'teknisi') {
+            abort(403, 'Unauthorized');
+        }
+
+        return view('teknisi.bookings.create-via-excel');
+    }
 }

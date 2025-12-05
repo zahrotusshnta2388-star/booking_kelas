@@ -44,8 +44,13 @@ Route::middleware(['auth', 'role:teknisi'])->group(function () {
             ->name('teknisi.bookings.create-bulk');
         Route::post('/store-bulk', [BookingController::class, 'storeBulk'])
             ->name('teknisi.bookings.store-bulk');
+
+        Route::get('/create-via-excel', [BookingController::class, 'createViaExcel'])
+            ->name('teknisi.bookings.create-via-excel');
     });
 });
+
+
 
 Route::fallback(function () {
     return redirect('/')->with('error', 'Halaman tidak ditemukan');
