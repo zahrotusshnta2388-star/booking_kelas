@@ -14,10 +14,6 @@ Route::get('/jadwal-ruangan', [RuanganController::class, 'publik'])
 Route::post('/check-availability', [RuanganController::class, 'checkAvailability'])
     ->name('ruangan.checkAvailability');
 
-Route::get('/teknisi/jadwal-ruangan', [RuanganController::class, 'jadwalRuangan'])
-    ->name('ruangan.jadwal');
-
-
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])
         ->name('login');

@@ -91,7 +91,6 @@ class BookingController extends Controller
                     $occupiedSlots[$ruanganId][$slotKey] = true;
                 }
             } catch (\Exception $e) {
-                \Log::error("Error processing booking: " . $e->getMessage());
                 continue;
             }
         }
